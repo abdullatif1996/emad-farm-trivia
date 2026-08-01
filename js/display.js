@@ -190,6 +190,50 @@ teamNamesRef.on("value", (snapshot) => {
   renderTeamNamesAndTurn();
 });
 
+// ---------- حساب حجم صفوف الإجابات من المساحة الفعلية المتوفرة ----------
+// بدل الاعتماد بس على عدد الإجابات (اللي ما يتغيّر بين الوضع العمودي
+// والأفقي)، نقيس هنا الارتفاع الحقيقي المتاح لقائمة الإجابات بعد كل
+// العناصر الثابتة فوقها (شريط الفريقين، العنوان، الخط، العداد) ونحسب حجم
+// الخط والمسافات على أساسه — هذا يضمن عدم التكدس بأي نسبة عرض-لارتفاع
+// (خصوصًا الوضع الأفقي اللي يكون فيه ارتفاع الشاشة قصير جدًا).
+let lastAnswerCount = 0;
+
+function updateRowSizing(rowCount) {
+  const answersEl = document.getElementById("dAnswers");
+  if (!answersEl || rowCount <= 0) return;
+
+  const availableHeight = answersEl.clientHeight;
+  if (availableHeight <= 0) return;
+
+  const roughPerRow = availableHeight / rowCount;
+  const gapPx = Math.max(2, Math.min(8, roughPerRow * 0.12));
+  const totalGap = gapPx * Math.max(0, rowCount - 1);
+
+  const rowPaddingBlock = Math.max(1, Math.min(4, roughPerRow * 0.08));
+  const contentPerRow = (availableHeight - totalGap) / rowCount - rowPaddingBlock * 2;
+
+  const pointsBoxOverhead = 6; // حدود + حشوة صندوق النقاط تقريبًا (1px*2 + 2px*2)
+  const lineHeight = 1.6;
+
+  let fontSize = (contentPerRow - pointsBoxOverhead) / lineHeight;
+  fontSize = Math.max(12, Math.min(27, fontSize));
+
+  const root = document.documentElement.style;
+  root.setProperty("--row-font-size", fontSize.toFixed(1) + "px");
+  root.setProperty("--row-gap", gapPx.toFixed(1) + "px");
+  root.setProperty("--row-padding-block", rowPaddingBlock.toFixed(1) + "px");
+}
+
+// لو المستخدم دوّر الجوال (عمودي ↔ أفقي) وسط اللعبة، نعيد حساب الأحجام
+// فورًا بدل ما ننتظر تحديث جديد من قاعدة البيانات
+let resizeDebounce = null;
+window.addEventListener("resize", () => {
+  if (resizeDebounce) clearTimeout(resizeDebounce);
+  resizeDebounce = setTimeout(() => {
+    if (lastAnswerCount > 0) updateRowSizing(lastAnswerCount);
+  }, 120);
+});
+
 currentRef.on("value", (snapshot) => {
   const data = snapshot.val();
   const emptyState = document.getElementById("emptyState");
@@ -233,9 +277,11 @@ currentRef.on("value", (snapshot) => {
   document.getElementById("dCounter").innerHTML =
     `تم اكتشاف <span class="counter-highlight">${revealedCount}</span> من ${total}`;
 
-  // يقود حساب حجم الخط الديناميكي في CSS (clamp/calc حسب --answer-count)
-  // حتى تبان كل الإجابات بدون تمرير مهما زاد عددها
+  // يقود حساب حجم عنوان السؤال (clamp/calc حسب --answer-count، مع حد أعلى
+  // بالـ vh عشان ينكمش بالوضع الأفقي أيضًا)
   document.documentElement.style.setProperty("--answer-count", total);
+  lastAnswerCount = total;
+  updateRowSizing(total);
 
   // نحدّث كل صف بمكانه بدل ما نهدم القائمة كاملة ونعيد بناءها بكل تحديث —
   // هدم/بناء متكرر (خصوصًا مع كشف عدة إجابات بسرعة) يقدر يعطّل حساب ارتفاع
