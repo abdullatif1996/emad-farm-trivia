@@ -12,12 +12,6 @@ let currentScores = { team1: 0, team2: 0 };
 let currentTurnTeam = 1;
 let currentTeamNames = { ...DEFAULT_TEAM_NAMES };
 
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str == null ? "" : String(str);
-  return div.innerHTML;
-}
-
 // ---------- مؤثرات صوتية (Web Audio API، بدون ملف خارجي) ----------
 // AudioContext واحد مشترك للصفحة كلها — يُنشأ (أو يُفعّل) مرة وحدة بضغطة المستخدم
 // على بوابة "اضغط لتفعيل الصوت"، لأن متصفحات الجوال تمنع الصوت بدون تفاعل مباشر.
@@ -243,9 +237,11 @@ currentRef.on("value", (snapshot) => {
   // حتى تبان كل الإجابات بدون تمرير مهما زاد عددها
   document.documentElement.style.setProperty("--answer-count", total);
 
+  // نحدّث كل صف بمكانه بدل ما نهدم القائمة كاملة ونعيد بناءها بكل تحديث —
+  // هدم/بناء متكرر (خصوصًا مع كشف عدة إجابات بسرعة) يقدر يعطّل حساب ارتفاع
+  // الصفوف (flex:1 المتداخل) بمتصفحات الجوال ويخلي الصفوف تتكدس فوق بعض.
+  // كل صف يُنشأ مرة وحدة فقط، وبعدين نعدّل محتواه وحالته بمكانه.
   const answersEl = document.getElementById("dAnswers");
-  answersEl.innerHTML = "";
-
   let anyJustRevealed = false;
 
   data.answers.forEach((answer, index) => {
@@ -254,17 +250,27 @@ currentRef.on("value", (snapshot) => {
     const justRevealed = isRevealed && !wasRevealed;
     if (justRevealed) anyJustRevealed = true;
 
-    const row = document.createElement("div");
+    let row = answersEl.children[index];
+    if (!row) {
+      row = document.createElement("div");
+      row.innerHTML = `
+        <span class="d-index"></span>
+        <span class="d-text"></span>
+        <span class="d-points"></span>
+      `;
+      answersEl.appendChild(row);
+    }
+
     row.className = "display-answer" + (isRevealed ? " is-revealed" : "") + (justRevealed ? " just-revealed" : "");
-
-    row.innerHTML = `
-      <span class="d-index">${index + 1}</span>
-      <span class="d-text">${isRevealed ? escapeHtml(answer.text) : "?????"}</span>
-      <span class="d-points">${isRevealed ? answer.points + " نقطة" : ""}</span>
-    `;
-
-    answersEl.appendChild(row);
+    row.querySelector(".d-index").textContent = index + 1;
+    row.querySelector(".d-text").textContent = isRevealed ? answer.text : "?????";
+    row.querySelector(".d-points").textContent = isRevealed ? answer.points + " نقطة" : "";
   });
+
+  // احذف أي صفوف زايدة لو السؤال الجديد فيه إجابات أقل من السابق
+  while (answersEl.children.length > data.answers.length) {
+    answersEl.removeChild(answersEl.lastChild);
+  }
 
   if (anyJustRevealed) {
     playCorrectSound();
