@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>لوحة التحكم — الهوست</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- بوابة كلمة السر -->
+  <div class="login-gate" id="loginGate">
+    <div class="login-box panel">
+      <h2>دخول لوحة تحكم الهوست</h2>
+      <div class="form-field">
+        <label for="passwordInput">كلمة السر</label>
+        <input type="password" id="passwordInput" autocomplete="off" />
+      </div>
+      <button class="btn btn-primary" id="btnLogin" style="width:100%;">دخول</button>
+      <p class="error-text hidden" id="loginError">كلمة السر غير صحيحة</p>
+    </div>
+  </div>
+
+  <div id="hostPanel" class="hidden">
+  <div class="top-bar">
+    <h1>لوحة تحكم الهوست</h1>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div id="connectionStatus" class="connection-status">
+        <span class="status-dot"></span>
+        <span class="status-text">جاري الاتصال...</span>
+      </div>
+      <div class="top-bar-links">
+        <a href="index.html">الرئيسية</a>
+        <a href="admin.html">إدارة الأسئلة</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <div class="team-scoreboard" id="teamScoreboard">
+      <div class="team-card" id="team1Card" data-team="1" role="button" tabindex="0">
+        <div class="team-card-top">
+          <span class="team-turn-dot" id="team1TurnDot"></span>
+          <span class="team-card-name" id="team1NameText"></span>
+          <button type="button" class="team-edit-btn" id="team1EditBtn" title="تعديل اسم الفريق">✎</button>
+        </div>
+        <div class="team-card-score-row">
+          <button type="button" class="team-score-btn" id="team1MinusBtn" title="إنقاص نقطة">−</button>
+          <div class="team-card-score" id="team1ScoreText">0</div>
+          <button type="button" class="team-score-btn" id="team1PlusBtn" title="زيادة نقطة">+</button>
+        </div>
+      </div>
+      <div class="team-card" id="team2Card" data-team="2" role="button" tabindex="0">
+        <div class="team-card-top">
+          <span class="team-turn-dot" id="team2TurnDot"></span>
+          <span class="team-card-name" id="team2NameText"></span>
+          <button type="button" class="team-edit-btn" id="team2EditBtn" title="تعديل اسم الفريق">✎</button>
+        </div>
+        <div class="team-card-score-row">
+          <button type="button" class="team-score-btn" id="team2MinusBtn" title="إنقاص نقطة">−</button>
+          <div class="team-card-score" id="team2ScoreText">0</div>
+          <button type="button" class="team-score-btn" id="team2PlusBtn" title="زيادة نقطة">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:0; margin-bottom:18px;">
+      <button class="btn btn-danger btn-sm" id="btnNewGame">بدء لعبة جديدة</button>
+    </div>
+
+    <div class="panel" id="questionPickerPanel">
+      <h2>اختيار السؤال</h2>
+      <div id="questionPickList">
+        <p class="empty-note">جاري تحميل الأسئلة...</p>
+      </div>
+    </div>
+
+    <div class="panel" id="currentQuestionPanel" style="display:none;">
+      <div class="btn-row" style="margin-top:0; margin-bottom:14px;">
+        <button class="btn btn-sm" id="btnChangeQuestion">← تغيير السؤال</button>
+      </div>
+      <h2>السؤال الحالي</h2>
+      <div class="current-question-title" id="cqTitle"></div>
+      <div class="current-question-hint" id="cqHint"></div>
+
+      <div class="btn-row" style="margin-top:0; margin-bottom:16px;">
+        <button class="btn btn-primary" id="btnShowQuestion">اعرض السؤال</button>
+      </div>
+
+      <div class="answers-list" id="cqAnswers"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-danger" id="btnWrongAnswer">إجابة خطأ (تبديل الدور)</button>
+        <button class="btn btn-primary" id="btnRevealAll">إظهار كل الإجابات</button>
+        <button class="btn" id="btnReset">إعادة تعيين الجولة</button>
+        <button class="btn" id="btnNext">السؤال التالي</button>
+      </div>
+    </div>
+
+    <div class="panel" id="noQuestionPanel">
+      <p class="empty-note">اختر سؤالًا من القائمة أعلاه للبدء.</p>
+    </div>
+
+  </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/host.js"></script>
+</body>
+</html>

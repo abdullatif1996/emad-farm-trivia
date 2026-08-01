@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>شاشة العرض</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="display-page">
+  <div id="audioUnlockOverlay" class="audio-unlock-overlay">
+    <button type="button" class="audio-unlock-btn" id="btnUnlockAudio">اضغط هنا لتفعيل الصوت</button>
+  </div>
+
+  <div style="position:fixed; top:12px; left:12px; z-index:20;">
+    <div id="connectionStatus" class="connection-status">
+      <span class="status-dot"></span>
+      <span class="status-text">جاري الاتصال...</span>
+    </div>
+  </div>
+
+  <div class="top-right-cluster">
+    <div id="categoryBadge" class="category-badge hidden"></div>
+    <div class="site-logo">لعبة مزرعة عماد أبو عز</div>
+  </div>
+
+  <div id="wrongFlash" class="wrong-flash">
+    <svg class="wrong-flash-mark" viewBox="0 0 100 100" aria-hidden="true">
+      <line x1="20" y1="20" x2="80" y2="80" />
+      <line x1="80" y1="20" x2="20" y2="80" />
+    </svg>
+    <div class="wrong-flash-text">إجابة خاطئة</div>
+  </div>
+
+  <div class="display-wrap">
+    <div class="scorebar" id="teamScoreboard">
+      <div class="scorebar-team" id="team1Card">
+        <span class="team-turn-dot" id="team1TurnDot"></span>
+        <span class="scorebar-name" id="team1NameText"></span>
+        <span class="scorebar-score" id="team1ScoreText">0</span>
+      </div>
+      <div class="scorebar-divider"></div>
+      <div class="scorebar-team" id="team2Card">
+        <span class="team-turn-dot" id="team2TurnDot"></span>
+        <span class="scorebar-name" id="team2NameText"></span>
+        <span class="scorebar-score" id="team2ScoreText">0</span>
+      </div>
+    </div>
+
+    <div id="emptyState" class="display-empty-state">
+      بانتظار الهوست لاختيار سؤال...
+    </div>
+
+    <div id="preparingState" class="preparing-state hidden">
+      <div class="preparing-ring">
+        <span class="preparing-ring-pulse"></span>
+        <span class="preparing-ring-pulse pulse-delay"></span>
+        <span class="preparing-dot"></span>
+      </div>
+      <p class="preparing-text">الهوست يجهّز السؤال...</p>
+    </div>
+
+    <div id="questionView" class="hidden">
+      <div class="display-header">
+        <div class="display-title" id="dTitle"></div>
+        <div class="display-hint" id="dHint"></div>
+      </div>
+      <div class="display-title-rule"></div>
+      <div class="display-counter" id="dCounter"></div>
+
+      <div class="display-answers" id="dAnswers"></div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/display.js"></script>
+</body>
+</html>
