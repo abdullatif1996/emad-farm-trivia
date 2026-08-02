@@ -1,6 +1,6 @@
 // منطق لوحة تحكم اللعبة الثانية — "أسرع واحد يضغط"
 // ملاحظة: هذه حماية بسيطة على مستوى الواجهة فقط، وليست حماية أمنية حقيقية.
-const HOST2_PASSWORD = "buzzer1234";
+const HOST2_PASSWORD = "112212";
 
 function showHostPanel() {
   document.getElementById("loginGate").classList.add("hidden");
@@ -216,8 +216,10 @@ function renderCurrentQuestion() {
     ? "السؤال ظاهر بالكامل"
     : "ابدأ الكتابة";
 
+  // ملاحظة: Firebase يحذف الحقل بدل ما يخزّن null فعليًا، فـ judgement يرجع
+  // undefined بعد الحفظ لا null — لازم نتحقق "!== correct" مو "=== null"
   const buzzedPanel = document.getElementById("buzzedPanel");
-  if (currentGameState.buzzedBy && currentGameState.judgement === null) {
+  if (currentGameState.buzzedBy && currentGameState.judgement !== "correct") {
     buzzedPanel.style.display = "block";
     document.getElementById("buzzedPlayerName").textContent = currentGameState.buzzedBy;
   } else {
