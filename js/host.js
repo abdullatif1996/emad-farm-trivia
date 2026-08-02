@@ -23,6 +23,8 @@ function attemptLogin() {
     sessionStorage.setItem("hostAuthed", "1");
     errorEl.classList.add("hidden");
     showHostPanel();
+    // فتح لوحة الهوست الأولى يحوّل شاشة العرض تلقائيًا لوضع اللعبة الأولى
+    db.ref("game2/activeGame").set("game1");
   } else {
     errorEl.classList.remove("hidden");
   }

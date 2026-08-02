@@ -34,42 +34,59 @@
   </div>
 
   <div class="display-wrap">
-    <div class="scorebar" id="teamScoreboard">
-      <div class="scorebar-team" id="team1Card">
-        <span class="team-turn-dot" id="team1TurnDot"></span>
-        <span class="scorebar-name" id="team1NameText"></span>
-        <span class="scorebar-score" id="team1ScoreText">0</span>
+    <div id="game1Mode">
+      <div class="scorebar" id="teamScoreboard">
+        <div class="scorebar-team" id="team1Card">
+          <span class="team-turn-dot" id="team1TurnDot"></span>
+          <span class="scorebar-name" id="team1NameText"></span>
+          <span class="scorebar-score" id="team1ScoreText">0</span>
+        </div>
+        <div class="scorebar-divider"></div>
+        <div class="scorebar-team" id="team2Card">
+          <span class="team-turn-dot" id="team2TurnDot"></span>
+          <span class="scorebar-name" id="team2NameText"></span>
+          <span class="scorebar-score" id="team2ScoreText">0</span>
+        </div>
       </div>
-      <div class="scorebar-divider"></div>
-      <div class="scorebar-team" id="team2Card">
-        <span class="team-turn-dot" id="team2TurnDot"></span>
-        <span class="scorebar-name" id="team2NameText"></span>
-        <span class="scorebar-score" id="team2ScoreText">0</span>
+
+      <div id="emptyState" class="display-empty-state">
+        بانتظار الهوست لاختيار سؤال...
+      </div>
+
+      <div id="preparingState" class="preparing-state hidden">
+        <div class="preparing-ring">
+          <span class="preparing-ring-pulse"></span>
+          <span class="preparing-ring-pulse pulse-delay"></span>
+          <span class="preparing-dot"></span>
+        </div>
+        <p class="preparing-text">الهوست يجهّز السؤال...</p>
+      </div>
+
+      <div id="questionView" class="hidden">
+        <div class="display-header">
+          <div class="display-title" id="dTitle"></div>
+          <div class="display-hint" id="dHint"></div>
+        </div>
+        <div class="display-title-rule"></div>
+        <div class="display-counter" id="dCounter"></div>
+
+        <div class="display-answers" id="dAnswers"></div>
       </div>
     </div>
 
-    <div id="emptyState" class="display-empty-state">
-      بانتظار الهوست لاختيار سؤال...
-    </div>
+    <div id="game2Mode" class="hidden">
+      <div class="players-bar" id="playersBar"></div>
 
-    <div id="preparingState" class="preparing-state hidden">
-      <div class="preparing-ring">
-        <span class="preparing-ring-pulse"></span>
-        <span class="preparing-ring-pulse pulse-delay"></span>
-        <span class="preparing-dot"></span>
+      <div id="g2EmptyState" class="display-empty-state">
+        بانتظار الهوست يبدأ سؤالًا جديدًا...
       </div>
-      <p class="preparing-text">الهوست يجهّز السؤال...</p>
-    </div>
 
-    <div id="questionView" class="hidden">
-      <div class="display-header">
-        <div class="display-title" id="dTitle"></div>
-        <div class="display-hint" id="dHint"></div>
+      <div id="g2QuestionView" class="hidden">
+        <div class="g2-question-wrap">
+          <span class="g2-question-text" id="g2QuestionText"></span><span class="g2-caret" id="g2Caret"></span>
+        </div>
+        <div class="g2-buzz-banner hidden" id="g2BuzzBanner"></div>
       </div>
-      <div class="display-title-rule"></div>
-      <div class="display-counter" id="dCounter"></div>
-
-      <div class="display-answers" id="dAnswers"></div>
     </div>
   </div>
 

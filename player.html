@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>انضمام كلاعب — أسرع واحد يضغط</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div style="position:fixed; top:12px; left:12px; z-index:20;">
+    <div id="connectionStatus" class="connection-status">
+      <span class="status-dot"></span>
+      <span class="status-text">جاري الاتصال...</span>
+    </div>
+  </div>
+
+  <!-- شاشة إدخال الاسم -->
+  <div class="login-gate" id="nameGate">
+    <div class="login-box panel">
+      <h2>انضم للعبة</h2>
+      <p class="empty-note" style="margin-bottom:16px;">اكتب اسمك عشان يظهر للهوست ولشاشة العرض</p>
+      <div class="form-field">
+        <label for="playerNameInput">اسمك</label>
+        <input type="text" id="playerNameInput" autocomplete="off" maxlength="20" />
+      </div>
+      <button class="btn btn-primary" id="btnJoin" style="width:100%;">دخول</button>
+      <p class="error-text hidden" id="joinError">اكتب اسم صحيح أولًا</p>
+    </div>
+  </div>
+
+  <!-- شاشة الزر -->
+  <div id="buzzerScreen" class="buzzer-screen hidden">
+    <div class="buzzer-player-name" id="buzzerPlayerName"></div>
+    <div class="buzzer-score">
+      رصيدك: <span class="counter-highlight" id="buzzerScore">0</span>
+    </div>
+
+    <button type="button" class="buzz-btn" id="btnBuzz" disabled>
+      إجابة!
+    </button>
+
+    <div class="buzzer-status" id="buzzerStatus">بانتظار سؤال جديد...</div>
+
+    <button type="button" class="btn btn-sm" id="btnChangeName" style="margin-top:24px;">تغيير الاسم</button>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/player.js"></script>
+</body>
+</html>

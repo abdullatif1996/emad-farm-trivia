@@ -82,29 +82,34 @@ function playWrongSound() {
 // ---------- مؤشر بصري للإجابة الخاطئة ----------
 // ملاحظة: نراقب wrongFlashAt من داخل نفس مستمع game/current الرئيسي (بدل ref منفصل)
 // عشان نضمن استخدام نفس القناة اللي أثبتت شغلها مع بقية الحقول (العنوان، الفئة، النقاط...)
-let lastWrongFlashAt = 0;
-let wrongFlashInitialized = false;
-
-function showWrongFlash() {
+// نفس الآلية تُستخدم بلعبة "أسرع واحد يضغط" (game2) عبر متتبّع مستقل خاص فيها.
+function showWrongFlash(text) {
   const el = document.getElementById("wrongFlash");
+  el.querySelector(".wrong-flash-text").textContent = text || "إجابة خاطئة";
   el.classList.remove("is-active");
   void el.offsetWidth; // إعادة تشغيل الأنيميشن لو صار الحدث أكثر من مرة بسرعة
   el.classList.add("is-active");
 }
 
-function checkWrongFlash(value) {
-  if (!wrongFlashInitialized) {
-    lastWrongFlashAt = typeof value === "number" ? value : 0;
-    wrongFlashInitialized = true;
-    return;
-  }
-
-  if (typeof value === "number" && value > lastWrongFlashAt) {
-    lastWrongFlashAt = value;
-    playWrongSound();
-    showWrongFlash();
-  }
+function makeWrongFlashTracker() {
+  let last = 0;
+  let initialized = false;
+  return function (value, text) {
+    if (!initialized) {
+      last = typeof value === "number" ? value : 0;
+      initialized = true;
+      return;
+    }
+    if (typeof value === "number" && value > last) {
+      last = value;
+      playWrongSound();
+      showWrongFlash(text);
+    }
+  };
 }
+
+const checkWrongFlash = makeWrongFlashTracker();
+const checkWrongFlashGame2 = makeWrongFlashTracker();
 
 // ---------- نقاط الفريقين والدور (للقراءة فقط) ----------
 let animatedScores = { team1: 0, team2: 0 };
@@ -323,4 +328,126 @@ currentRef.on("value", (snapshot) => {
   }
 
   previousRevealed = data.answers.map((a) => !!a.revealed);
+});
+
+// ============================================================
+// لعبة "أسرع واحد يضغط" (game2) — منطق مستقل تمامًا عن اللعبة الأولى
+// ============================================================
+
+const activeGameRef = db.ref("game2/activeGame");
+const current2Ref = db.ref("game2/current");
+const players2Ref = db.ref("game2/players");
+
+const CHAR_DELAY_MS = 90; // نفس القيمة المستخدمة بـ host2.js و player.js
+
+// ---------- التبديل بين وضعي اللعبة ----------
+activeGameRef.on("value", (snapshot) => {
+  const mode = snapshot.val() === "game2" ? "game2" : "game1";
+  document.getElementById("game1Mode").classList.toggle("hidden", mode !== "game1");
+  document.getElementById("game2Mode").classList.toggle("hidden", mode !== "game2");
+});
+
+// ---------- لوحة نقاط اللاعبين ----------
+function escapeHtml2(str) {
+  const div = document.createElement("div");
+  div.textContent = str == null ? "" : String(str);
+  return div.innerHTML;
+}
+
+players2Ref.on("value", (snapshot) => {
+  const data = snapshot.val() || {};
+  const bar = document.getElementById("playersBar");
+  const names = Object.keys(data);
+
+  if (names.length === 0) {
+    bar.innerHTML = "";
+    return;
+  }
+
+  names.sort((a, b) => (data[b].score || 0) - (data[a].score || 0));
+
+  bar.innerHTML = names
+    .map(
+      (name) => `
+        <div class="player-pill">
+          <span class="player-pill-name">${escapeHtml2(name)}</span>
+          <span class="player-pill-score">${data[name].score || 0}</span>
+        </div>
+      `
+    )
+    .join("");
+});
+
+// ---------- الكتابة التدريجية + حالة الضغط ----------
+let game2Data = null;
+let typingFrame = null;
+
+function renderGame2() {
+  const emptyState = document.getElementById("g2EmptyState");
+  const questionView = document.getElementById("g2QuestionView");
+  const data = game2Data;
+
+  if (typingFrame) {
+    cancelAnimationFrame(typingFrame);
+    typingFrame = null;
+  }
+
+  if (!data || !data.question) {
+    emptyState.classList.remove("hidden");
+    questionView.classList.add("hidden");
+    return;
+  }
+
+  emptyState.classList.add("hidden");
+  questionView.classList.remove("hidden");
+
+  const textEl = document.getElementById("g2QuestionText");
+  const caretEl = document.getElementById("g2Caret");
+  const bannerEl = document.getElementById("g2BuzzBanner");
+
+  if (data.buzzedBy) {
+    caretEl.classList.add("hidden");
+    bannerEl.classList.remove("hidden");
+    bannerEl.textContent =
+      data.judgement === "correct" ? `✓ ${data.buzzedBy} أجاب صح!` : `${data.buzzedBy} يجاوب...`;
+    bannerEl.classList.toggle("is-correct", data.judgement === "correct");
+  } else {
+    bannerEl.classList.add("hidden");
+    bannerEl.classList.remove("is-correct");
+  }
+
+  function step() {
+    const questionText = data.question || "";
+    let shown;
+
+    if (data.typingActive && data.typingStartedAt) {
+      const elapsed = Date.now() - data.typingStartedAt;
+      shown = Math.min(
+        questionText.length,
+        (data.revealedCharsAtPause || 0) + Math.floor(elapsed / CHAR_DELAY_MS)
+      );
+    } else {
+      shown = Math.min(questionText.length, data.revealedCharsAtPause || 0);
+    }
+
+    textEl.textContent = questionText.slice(0, shown);
+
+    const fullyShown = shown >= questionText.length;
+    caretEl.classList.toggle("hidden", !!data.buzzedBy || fullyShown);
+
+    if (data.typingActive && !fullyShown) {
+      typingFrame = requestAnimationFrame(step);
+    }
+  }
+
+  step();
+}
+
+current2Ref.on("value", (snapshot) => {
+  game2Data = snapshot.val();
+  checkWrongFlashGame2(
+    game2Data && game2Data.wrongFlashAt,
+    game2Data && game2Data.lastWrongPlayer ? `${game2Data.lastWrongPlayer}: إجابة خاطئة` : undefined
+  );
+  renderGame2();
 });

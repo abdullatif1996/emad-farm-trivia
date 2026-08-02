@@ -811,6 +811,19 @@ button.answer-reveal-btn:disabled .answer-points {
   }
 }
 
+/* حاويتا وضعي اللعبة بشاشة العرض — كل وحدة تاخذ كامل مساحة .display-wrap
+   المتبقية (نفس سلوك .display-wrap نفسها) عشان أي وحدة ظاهرة تتصرف بالضبط
+   زي لو كانت هي المحتوى المباشر لـ .display-wrap */
+#game1Mode,
+#game2Mode {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 #questionView {
   flex: 1;
   min-height: 0;
@@ -1094,4 +1107,159 @@ button.answer-reveal-btn:disabled .answer-points {
   .top-bar h1 {
     font-size: 1.3rem;
   }
+}
+
+/* ============================================================
+   لعبة "أسرع واحد يضغط" — شاشة العرض (game2Mode)
+   ============================================================ */
+
+.players-bar {
+  width: 100%;
+  max-width: 900px;
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-bottom: 14px;
+}
+
+.player-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+
+.player-pill-name {
+  color: var(--ivory-dim);
+  font-size: 0.85rem;
+}
+
+.player-pill-score {
+  color: var(--brass);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+}
+
+#g2QuestionView {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+}
+
+.g2-question-wrap {
+  width: 100%;
+  max-width: 900px;
+  text-align: center;
+}
+
+.g2-question-text {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--ivory);
+  font-size: clamp(20px, 4.2vh, 36px);
+  line-height: 1.5;
+}
+
+.g2-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-inline-start: 3px;
+  background: var(--brass);
+  vertical-align: text-bottom;
+  animation: caretBlink 1s step-start infinite;
+}
+
+@keyframes caretBlink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.g2-buzz-banner {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: clamp(16px, 2.6vh, 22px);
+  color: var(--brass);
+  padding: 8px 20px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius);
+}
+
+.g2-buzz-banner.is-correct {
+  color: var(--ivory);
+  background: var(--brass);
+  border-color: var(--brass);
+}
+
+/* ============================================================
+   لعبة "أسرع واحد يضغط" — صفحة اللاعب (player.html)
+   ============================================================ */
+
+.buzzer-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  text-align: center;
+}
+
+.buzzer-player-name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: var(--ivory);
+}
+
+.buzzer-score {
+  color: var(--ivory-dim);
+  font-size: 0.95rem;
+}
+
+.buzz-btn {
+  width: min(70vw, 260px);
+  height: min(70vw, 260px);
+  border-radius: 50%;
+  border: 2px solid var(--brass);
+  background: var(--bg-raised);
+  color: var(--brass);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: clamp(24px, 8vw, 34px);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.buzz-btn:not(:disabled):hover {
+  background: rgba(176, 141, 87, 0.1);
+}
+
+.buzz-btn:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.buzz-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.buzzer-status {
+  color: var(--ivory-dim);
+  font-size: 0.95rem;
+  min-height: 1.4em;
 }
