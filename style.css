@@ -1204,6 +1204,14 @@ button.answer-reveal-btn:disabled .answer-points {
   border-color: var(--brass);
 }
 
+.g2-buzz-banner.is-grace {
+  color: var(--brass-dim);
+  font-weight: 500;
+  font-size: clamp(14px, 2vh, 18px);
+  border-color: transparent;
+  background: transparent;
+}
+
 /* ============================================================
    لعبة "أسرع واحد يضغط" — صفحة اللاعب (player.html)
    ============================================================ */

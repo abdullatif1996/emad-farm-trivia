@@ -96,9 +96,11 @@ function updateBuzzButtonState() {
     return;
   }
 
-  if (data.typingActive) {
+  const inGrace = typeof data.graceUntil === "number" && Date.now() < data.graceUntil;
+
+  if (data.typingActive || inGrace) {
     btn.disabled = false;
-    statusEl.textContent = "اضغط لو عرفت الجواب!";
+    statusEl.textContent = inGrace ? "الفرصة مفتوحة! اضغط لو عرفت الجواب" : "اضغط لو عرفت الجواب!";
     return;
   }
 
@@ -116,20 +118,29 @@ document.getElementById("btnBuzz").addEventListener("click", () => {
 
   currentRef.transaction((data) => {
     if (!data) return data; // ما فيه سؤال نشط، تجاهل
-    if (!data.typingActive) return data; // الكتابة مو شغالة حاليًا، تجاهل
     if (data.buzzedBy) return data; // لاعب ثاني سبقه، تجاهل (هذا اللي يمنع تعادل الضغط)
     if (Array.isArray(data.blockedPlayers) && data.blockedPlayers.includes(myName)) return data;
 
+    const inGrace = typeof data.graceUntil === "number" && Date.now() < data.graceUntil;
+    if (!data.typingActive && !inGrace) return data; // ما فيه فرصة ضغط حاليًا
+
     const questionText = data.question || "";
-    const startedAt = data.typingStartedAt || Date.now();
-    const elapsed = Date.now() - startedAt;
-    const extraChars = Math.floor(elapsed / CHAR_DELAY_MS);
-    const frozenChars = Math.min(questionText.length, (data.revealedCharsAtPause || 0) + extraChars);
+    let frozenChars;
+
+    if (data.typingActive && data.typingStartedAt) {
+      const elapsed = Date.now() - data.typingStartedAt;
+      const extraChars = Math.floor(elapsed / CHAR_DELAY_MS);
+      frozenChars = Math.min(questionText.length, (data.revealedCharsAtPause || 0) + extraChars);
+    } else {
+      // بفترة السماح الكتابة متوقفة أصلاً بنفس النقطة، ما فيه شي يتحسب
+      frozenChars = data.revealedCharsAtPause || 0;
+    }
 
     data.buzzedBy = myName;
     data.typingActive = false;
     data.typingStartedAt = null;
     data.revealedCharsAtPause = frozenChars;
+    data.graceUntil = null; // يلغي العد التنازلي فورًا لأن حد ضغط
     return data;
   });
 });

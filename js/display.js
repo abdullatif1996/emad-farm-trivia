@@ -405,17 +405,6 @@ function renderGame2() {
   const caretEl = document.getElementById("g2Caret");
   const bannerEl = document.getElementById("g2BuzzBanner");
 
-  if (data.buzzedBy) {
-    caretEl.classList.add("hidden");
-    bannerEl.classList.remove("hidden");
-    bannerEl.textContent =
-      data.judgement === "correct" ? `✓ ${data.buzzedBy} أجاب صح!` : `${data.buzzedBy} يجاوب...`;
-    bannerEl.classList.toggle("is-correct", data.judgement === "correct");
-  } else {
-    bannerEl.classList.add("hidden");
-    bannerEl.classList.remove("is-correct");
-  }
-
   function step() {
     const questionText = data.question || "";
     let shown;
@@ -435,12 +424,53 @@ function renderGame2() {
     const fullyShown = shown >= questionText.length;
     caretEl.classList.toggle("hidden", !!data.buzzedBy || fullyShown);
 
-    if (data.typingActive && !fullyShown) {
+    // بانر الحالة: ضغط لاعب، أو فرصة مفتوحة بعد إجابة خاطئة (بعدّاد تنازلي حي)
+    const inGrace = !data.buzzedBy && typeof data.graceUntil === "number" && Date.now() < data.graceUntil;
+
+    if (data.buzzedBy) {
+      bannerEl.classList.remove("hidden");
+      bannerEl.classList.remove("is-grace");
+      bannerEl.textContent =
+        data.judgement === "correct" ? `✓ ${data.buzzedBy} أجاب صح!` : `${data.buzzedBy} يجاوب...`;
+      bannerEl.classList.toggle("is-correct", data.judgement === "correct");
+    } else if (inGrace) {
+      const secondsLeft = Math.max(0, Math.ceil((data.graceUntil - Date.now()) / 1000));
+      bannerEl.classList.remove("hidden");
+      bannerEl.classList.add("is-grace");
+      bannerEl.classList.remove("is-correct");
+      bannerEl.textContent = `الفرصة مفتوحة... ${secondsLeft}`;
+    } else {
+      bannerEl.classList.add("hidden");
+      bannerEl.classList.remove("is-correct", "is-grace");
+    }
+
+    // طبقة موثوقية إضافية لاستئناف الكتابة بعد انتهاء المهلة — مستقلة عن
+    // setInterval بـ host2.js وتعتمد على نفس timestamp المحفوظ بقاعدة البيانات
+    if (!data.buzzedBy && typeof data.graceUntil === "number" && Date.now() >= data.graceUntil) {
+      tryAutoResumeGame2();
+    }
+
+    if ((data.typingActive && !fullyShown) || inGrace) {
       typingFrame = requestAnimationFrame(step);
     }
   }
 
   step();
+}
+
+function tryAutoResumeGame2() {
+  current2Ref.transaction((data) => {
+    if (!data) return data;
+    if (data.typingActive) return data;
+    if (data.buzzedBy) return data;
+    if (typeof data.graceUntil !== "number") return data;
+    if (Date.now() < data.graceUntil) return data;
+
+    data.typingActive = true;
+    data.typingStartedAt = Date.now();
+    data.graceUntil = null;
+    return data;
+  });
 }
 
 current2Ref.on("value", (snapshot) => {

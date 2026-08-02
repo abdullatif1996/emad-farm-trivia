@@ -209,11 +209,15 @@ function renderCurrentQuestion() {
   const fullyShown =
     !currentGameState.typingActive &&
     (currentGameState.revealedCharsAtPause || 0) >= currentGameState.question.length;
+  const inGrace =
+    typeof currentGameState.graceUntil === "number" && Date.now() < currentGameState.graceUntil;
   startBtn.disabled = !!currentGameState.typingActive || fullyShown;
   startBtn.textContent = currentGameState.typingActive
     ? "الكتابة شغّالة..."
     : fullyShown
     ? "السؤال ظاهر بالكامل"
+    : inGrace
+    ? "فترة سماح... (أو ابدأ الآن)"
     : "ابدأ الكتابة";
 
   // ملاحظة: Firebase يحذف الحقل بدل ما يخزّن null فعليًا، فـ judgement يرجع
@@ -253,6 +257,8 @@ document.getElementById("btnJudgeCorrect").addEventListener("click", () => {
   });
 });
 
+const GRACE_MS = 4000; // مهلة الفرصة المفتوحة لباقي اللاعبين بعد إجابة خاطئة
+
 document.getElementById("btnJudgeWrong").addEventListener("click", () => {
   if (!currentGameState || !currentGameState.buzzedBy) return;
   const playerName = currentGameState.buzzedBy;
@@ -261,16 +267,40 @@ document.getElementById("btnJudgeWrong").addEventListener("click", () => {
     : [];
   blocked.push(playerName);
 
+  // السؤال يفضل متوقف بمكانه — ما نكمل الكتابة فورًا، نفتح مهلة 4 ثواني
+  // يقدر خلالها أي لاعب ثاني (غير المتعطلين) يضغط، وبعدها تكمل الكتابة تلقائيًا
   currentRef.update({
     buzzedBy: null,
     judgement: null,
-    typingActive: true,
-    typingStartedAt: Date.now(),
+    typingActive: false,
+    typingStartedAt: null,
+    graceUntil: Date.now() + GRACE_MS,
     blockedPlayers: blocked,
     wrongFlashAt: Date.now(),
     lastWrongPlayer: playerName,
   });
 });
+
+// ---------- استئناف الكتابة تلقائيًا بعد انتهاء مهلة الفرصة المفتوحة ----------
+// نعتمد على timestamp محفوظ بقاعدة البيانات (graceUntil) لا على setTimeout محلي
+// بجهاز واحد بس — display.js يشغّل نفس الفحص بشكل مستقل كطبقة موثوقية إضافية،
+// وبما إنه transaction فمحاولات متكررة من أكثر من جهاز آمنة تمامًا.
+function tryAutoResumeGame2() {
+  currentRef.transaction((data) => {
+    if (!data) return data;
+    if (data.typingActive) return data;
+    if (data.buzzedBy) return data;
+    if (typeof data.graceUntil !== "number") return data;
+    if (Date.now() < data.graceUntil) return data;
+
+    data.typingActive = true;
+    data.typingStartedAt = Date.now();
+    data.graceUntil = null;
+    return data;
+  });
+}
+
+setInterval(tryAutoResumeGame2, 300);
 
 // ---------- السؤال التالي ----------
 document.getElementById("btnNext2").addEventListener("click", () => {
