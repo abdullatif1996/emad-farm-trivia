@@ -353,6 +353,7 @@ const current2Ref = db.ref("game2/current");
 const players2Ref = db.ref("game2/players");
 
 const CHAR_DELAY_MS = 90; // نفس القيمة المستخدمة بـ host2.js و player.js
+const BUZZ_COUNTDOWN_MS = 5000; // نفس القيمة المستخدمة بحلقة الزر في player.js
 
 // ---------- التبديل بين وضعي اللعبة ----------
 activeGameRef.on("value", (snapshot) => {
@@ -443,12 +444,28 @@ function renderGame2() {
     // بانر الحالة: ضغط لاعب، أو فرصة مفتوحة بعد إجابة خاطئة (بعدّاد تنازلي حي)
     const inGrace = !data.buzzedBy && typeof data.graceUntil === "number" && Date.now() < data.graceUntil;
 
+    // مؤقت 5 ثواني بجانب اسم اللاعب اللي ضغط — عرض بصري بس، ما يرتبط بأي أمر
+    // ولا يوقف أي شي بمنطق اللعبة، ويعتمد على buzzedAt (timestamp محفوظ
+    // بقاعدة البيانات من player.js) بدل setTimeout محلي
+    const isCorrect = data.judgement === "correct";
+    const showBuzzCountdown = !isCorrect && typeof data.buzzedAt === "number";
+    const buzzSecondsLeft = showBuzzCountdown
+      ? Math.max(0, Math.ceil((data.buzzedAt + BUZZ_COUNTDOWN_MS - Date.now()) / 1000))
+      : 0;
+    const buzzCountdownActive = showBuzzCountdown && Date.now() - data.buzzedAt < BUZZ_COUNTDOWN_MS;
+
     if (data.buzzedBy) {
       bannerEl.classList.remove("hidden");
       bannerEl.classList.remove("is-grace");
-      bannerEl.textContent =
-        data.judgement === "correct" ? `✓ ${data.buzzedBy} أجاب صح!` : `${data.buzzedBy} يجاوب...`;
-      bannerEl.classList.toggle("is-correct", data.judgement === "correct");
+      // شارة العد التنازلي تلتصق مباشرة باسم اللاعب (قبل نص الحالة)، عشان
+      // تظهر جنب اسمه بالضبط زي المطلوب
+      const countdownHtml = buzzCountdownActive
+        ? ` <span class="g2-buzz-countdown">${buzzSecondsLeft}</span>`
+        : "";
+      bannerEl.innerHTML = isCorrect
+        ? `✓ ${escapeHtml2(data.buzzedBy)} أجاب صح!`
+        : `${escapeHtml2(data.buzzedBy)}${countdownHtml} يجاوب...`;
+      bannerEl.classList.toggle("is-correct", isCorrect);
     } else if (inGrace) {
       const secondsLeft = Math.max(0, Math.ceil((data.graceUntil - Date.now()) / 1000));
       bannerEl.classList.remove("hidden");
@@ -466,7 +483,7 @@ function renderGame2() {
       tryAutoResumeGame2();
     }
 
-    if ((data.typingActive && !fullyShown) || inGrace) {
+    if ((data.typingActive && !fullyShown) || inGrace || buzzCountdownActive) {
       typingFrame = requestAnimationFrame(step);
     }
   }

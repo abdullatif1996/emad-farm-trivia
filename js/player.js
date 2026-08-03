@@ -2,6 +2,7 @@
 
 const currentRef = db.ref("game2/current");
 const playersRef = db.ref("game2/players");
+const pendingPlayersRef = db.ref("game2/pendingPlayers");
 
 const CHAR_DELAY_MS = 90; // نفس القيمة المستخدمة بـ display.js لحساب موضع الكتابة لحظة الضغط
 
@@ -9,30 +10,46 @@ const STORAGE_KEY = "buzzerPlayerName";
 
 let myName = null;
 let currentGameState = null;
+let isApproved = false; // لاعب معتمد بقائمة game2/players، وإلا بحالة انتظار
 
-function showBuzzerScreen(name) {
+function showJoinedScreens(name) {
   document.getElementById("nameGate").classList.add("hidden");
-  document.getElementById("buzzerScreen").classList.remove("hidden");
   document.getElementById("buzzerPlayerName").textContent = name;
+  document.getElementById("waitingPlayerName").textContent = name;
+  updateApprovalUI();
 }
 
-function registerPlayer(name) {
-  const playerRef = playersRef.child(name);
-  playerRef.once("value").then((snap) => {
-    if (!snap.exists()) {
-      playerRef.set({ score: 0 });
-    }
-  });
+function updateApprovalUI() {
+  document.getElementById("waitingApprovalScreen").classList.toggle("hidden", isApproved);
+  document.getElementById("buzzerScreen").classList.toggle("hidden", !isApproved);
+}
 
-  playerRef.child("score").on("value", (snap) => {
-    document.getElementById("buzzerScore").textContent = snap.val() || 0;
+// لاعب لازم يوافق عليه الهوست أول (game2/pendingPlayers) قبل ما ينضم فعليًا
+// لقائمة اللاعبين النشطين (game2/players) — راجع host2.html
+function registerPlayer(name) {
+  const approvedRef = playersRef.child(name);
+
+  approvedRef.on("value", (snap) => {
+    if (snap.exists()) {
+      isApproved = true;
+      document.getElementById("buzzerScore").textContent = (snap.val() && snap.val().score) || 0;
+    } else {
+      isApproved = false;
+      // سجّل طلب انضمام مرة وحدة بس، لو ما فيه طلب مسجّل أصلاً
+      pendingPlayersRef.child(name).once("value").then((pendingSnap) => {
+        if (!pendingSnap.exists()) {
+          pendingPlayersRef.child(name).set({ requestedAt: Date.now() });
+        }
+      });
+    }
+    updateApprovalUI();
   });
 }
 
 function joinAs(name) {
   myName = name;
   localStorage.setItem(STORAGE_KEY, name);
-  showBuzzerScreen(name);
+  showJoinedScreens(name);
   registerPlayer(name);
 }
 
@@ -61,6 +78,7 @@ function attemptJoin() {
 document.getElementById("btnChangeName").addEventListener("click", () => {
   localStorage.removeItem(STORAGE_KEY);
   document.getElementById("buzzerScreen").classList.add("hidden");
+  document.getElementById("waitingApprovalScreen").classList.add("hidden");
   document.getElementById("nameGate").classList.remove("hidden");
   document.getElementById("playerNameInput").value = "";
 });
@@ -112,6 +130,7 @@ currentRef.on("value", (snapshot) => {
   currentGameState = snapshot.val();
   updateBuzzButtonState();
   updateTopCategoryBadge();
+  updateBuzzRing();
 });
 
 function updateTopCategoryBadge() {
@@ -121,6 +140,48 @@ function updateTopCategoryBadge() {
   const category = data && data.question ? data.category || "" : "";
   badge.textContent = category;
   badge.classList.toggle("hidden", !category);
+}
+
+// ---------- حلقة عد الـ5 ثواني حول زر اللاعب نفسه لما هو اللي ضغط ----------
+const BUZZ_RING_MS = 5000;
+const BUZZ_RING_CIRCUMFERENCE = 2 * Math.PI * 46; // نفس نصف قطر الدائرة بـ SVG (r=46)
+let ringFrame = null;
+
+function updateBuzzRing() {
+  if (ringFrame) {
+    cancelAnimationFrame(ringFrame);
+    ringFrame = null;
+  }
+
+  const ringEl = document.getElementById("buzzRing");
+  const progressEl = document.getElementById("buzzRingProgress");
+  const data = currentGameState;
+
+  const showRing =
+    !!data &&
+    data.buzzedBy === myName &&
+    data.judgement !== "correct" &&
+    typeof data.buzzedAt === "number";
+
+  if (!showRing) {
+    ringEl.classList.add("hidden");
+    return;
+  }
+
+  ringEl.classList.remove("hidden");
+  progressEl.style.strokeDasharray = BUZZ_RING_CIRCUMFERENCE.toFixed(2);
+
+  function step() {
+    const elapsed = Date.now() - data.buzzedAt;
+    const fraction = Math.min(1, Math.max(0, elapsed / BUZZ_RING_MS));
+    progressEl.style.strokeDashoffset = (BUZZ_RING_CIRCUMFERENCE * fraction).toFixed(2);
+
+    if (fraction < 1) {
+      ringFrame = requestAnimationFrame(step);
+    }
+  }
+
+  step();
 }
 
 document.getElementById("btnBuzz").addEventListener("click", () => {
@@ -147,6 +208,7 @@ document.getElementById("btnBuzz").addEventListener("click", () => {
     }
 
     data.buzzedBy = myName;
+    data.buzzedAt = Date.now(); // مرجع الوقت لعرض مؤقت الـ5 ثواني (بشاشة العرض وحلقة الزر هنا)
     data.typingActive = false;
     data.typingStartedAt = null;
     data.revealedCharsAtPause = frozenChars;

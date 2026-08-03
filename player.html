@@ -34,6 +34,17 @@
     </div>
   </div>
 
+  <!-- شاشة انتظار موافقة الهوست -->
+  <div id="waitingApprovalScreen" class="buzzer-screen hidden">
+    <div class="buzzer-player-name" id="waitingPlayerName"></div>
+    <div class="preparing-ring">
+      <span class="preparing-ring-pulse"></span>
+      <span class="preparing-ring-pulse pulse-delay"></span>
+      <span class="preparing-dot"></span>
+    </div>
+    <div class="buzzer-status">بانتظار موافقة الهوست...</div>
+  </div>
+
   <!-- شاشة الزر -->
   <div id="buzzerScreen" class="buzzer-screen hidden">
     <div class="buzzer-player-name" id="buzzerPlayerName"></div>
@@ -41,9 +52,15 @@
       رصيدك: <span class="counter-highlight" id="buzzerScore">0</span>
     </div>
 
-    <button type="button" class="buzz-btn" id="btnBuzz" disabled>
-      إجابة!
-    </button>
+    <div class="buzz-btn-wrap">
+      <svg class="buzz-ring hidden" id="buzzRing" viewBox="0 0 100 100">
+        <circle class="buzz-ring-bg" cx="50" cy="50" r="46"></circle>
+        <circle class="buzz-ring-progress" id="buzzRingProgress" cx="50" cy="50" r="46"></circle>
+      </svg>
+      <button type="button" class="buzz-btn" id="btnBuzz" disabled>
+        إجابة!
+      </button>
+    </div>
 
     <div class="buzzer-status" id="buzzerStatus">بانتظار سؤال جديد...</div>
 

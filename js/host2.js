@@ -34,6 +34,7 @@ const questions2Ref = db.ref("questions2");
 const questions2ArchiveRef = db.ref("questions2Archive");
 const currentRef = db.ref("game2/current");
 const playersRef = db.ref("game2/players");
+const pendingPlayersRef = db.ref("game2/pendingPlayers");
 
 let flatQuestions = []; // [{category, id, question, answer}]
 let currentGameState = null; // آخر نسخة من game2/current
@@ -80,8 +81,46 @@ playersRef.on("value", (snapshot) => {
 document.getElementById("btnResetGame").addEventListener("click", () => {
   if (!confirm("إعادة تعيين اللعبة سيمسح كل اللاعبين ونقاطهم والسؤال الحالي. متابعة؟")) return;
   playersRef.remove();
+  pendingPlayersRef.remove();
   currentRef.remove();
 });
+
+// ---------- طلبات انضمام تنتظر موافقة الهوست ----------
+pendingPlayersRef.on("value", (snapshot) => {
+  const data = snapshot.val() || {};
+  const listEl = document.getElementById("pendingList");
+  const names = Object.keys(data).sort((a, b) => (data[a].requestedAt || 0) - (data[b].requestedAt || 0));
+
+  document.getElementById("pendingCount").textContent = names.length;
+
+  if (names.length === 0) {
+    listEl.innerHTML = '<p class="empty-note">ولا طلب انضمام حاليًا.</p>';
+    return;
+  }
+
+  listEl.innerHTML = "";
+  names.forEach((name) => {
+    const row = document.createElement("div");
+    row.className = "admin-question-item";
+    row.innerHTML = `<div class="aq-title">${escapeHtml(name)}</div>`;
+
+    const approveBtn = document.createElement("button");
+    approveBtn.type = "button";
+    approveBtn.className = "btn btn-primary btn-sm";
+    approveBtn.textContent = "موافق";
+    approveBtn.addEventListener("click", () => approvePlayer(name));
+    row.appendChild(approveBtn);
+
+    listEl.appendChild(row);
+  });
+});
+
+function approvePlayer(name) {
+  const updates = {};
+  updates[`players/${name}`] = { score: 0 };
+  updates[`pendingPlayers/${name}`] = null;
+  db.ref("game2").update(updates);
+}
 
 // ---------- أرشيف الأسئلة المُجابة ----------
 let archiveExpanded = false;
@@ -133,9 +172,17 @@ questions2ArchiveRef.on("value", (snapshot) => {
   });
 });
 
-// ---------- تحميل قائمة الأسئلة وبناء قائمة الاختيار ----------
+// ---------- تحميل قائمة الأسئلة وبناء قائمة الاختيار (أكورديون: فئة وحدة مفتوحة بنفس الوقت) ----------
+let lastQuestions2Data = {};
+let openCategory = null;
+
 questions2Ref.on("value", (snapshot) => {
-  const data = snapshot.val() || {};
+  lastQuestions2Data = snapshot.val() || {};
+  renderQuestionPickList();
+});
+
+function renderQuestionPickList() {
+  const data = lastQuestions2Data;
   flatQuestions = [];
   const listEl = document.getElementById("questionPickList");
   listEl.innerHTML = "";
@@ -151,12 +198,20 @@ questions2Ref.on("value", (snapshot) => {
     const groupDiv = document.createElement("div");
     groupDiv.className = "category-group";
 
-    const heading = document.createElement("h3");
-    heading.textContent = category;
+    const isOpen = openCategory === category;
+
+    const heading = document.createElement("button");
+    heading.type = "button";
+    heading.className = "category-accordion-header" + (isOpen ? " is-open" : "");
+    heading.innerHTML = `<span>${escapeHtml(category)}</span><span class="accordion-caret">›</span>`;
+    heading.addEventListener("click", () => {
+      openCategory = isOpen ? null : category;
+      renderQuestionPickList();
+    });
     groupDiv.appendChild(heading);
 
     const listDiv = document.createElement("div");
-    listDiv.className = "question-pick-list";
+    listDiv.className = "question-pick-list" + (isOpen ? "" : " hidden");
 
     Object.keys(questionsInCat).forEach((qId) => {
       const q = questionsInCat[qId];
@@ -183,7 +238,7 @@ questions2Ref.on("value", (snapshot) => {
   });
 
   highlightActivePick();
-});
+}
 
 function highlightActivePick() {
   const buttons = document.querySelectorAll(".question-pick-btn");

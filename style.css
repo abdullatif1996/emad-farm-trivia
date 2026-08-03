@@ -583,6 +583,39 @@ body.landing-page-bg {
   gap: 1px;
 }
 
+/* ---------- أكورديون فئات الأسئلة (host2.html) — فئة وحدة مفتوحة بنفس الوقت ---------- */
+.category-accordion-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 2px;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--brass);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-align: right;
+}
+
+.category-accordion-header:hover {
+  color: var(--ivory);
+}
+
+.accordion-caret {
+  display: inline-block;
+  color: var(--ivory-faint);
+  transition: transform 0.2s ease;
+  transform: rotate(-90deg);
+  flex-shrink: 0;
+}
+
+.category-accordion-header.is-open .accordion-caret {
+  transform: rotate(0deg);
+}
+
 .question-pick-btn {
   text-align: right;
   padding: 11px 12px;
@@ -1323,6 +1356,19 @@ button.answer-reveal-btn:disabled .answer-points {
   border-color: var(--brass);
 }
 
+.g2-buzz-countdown {
+  display: inline-block;
+  min-width: 1.4em;
+  margin-inline-start: 4px;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: var(--brass);
+  color: var(--bg);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85em;
+  text-align: center;
+}
+
 .g2-buzz-banner.is-grace {
   color: var(--brass-dim);
   font-weight: 500;
@@ -1383,6 +1429,43 @@ button.answer-reveal-btn:disabled .answer-points {
 .buzz-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+/* ---------- حلقة مؤقت الـ5 ثواني حول زر اللاعب ---------- */
+.buzz-btn-wrap {
+  position: relative;
+  width: min(70vw, 260px);
+  height: min(70vw, 260px);
+}
+
+.buzz-btn-wrap .buzz-btn {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.buzz-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.buzz-ring-bg {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 3;
+}
+
+.buzz-ring-progress {
+  fill: none;
+  stroke: var(--brass);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.1s linear;
 }
 
 .buzzer-status {

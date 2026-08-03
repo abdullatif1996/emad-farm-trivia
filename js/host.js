@@ -29,6 +29,7 @@ function attemptLogin() {
 }
 
 const questionsRef = db.ref("questions");
+const questionsArchiveRef = db.ref("questionsArchive");
 const currentRef = db.ref("game/current");
 const scoresRef = db.ref("game/scores");
 const turnTeamRef = db.ref("game/turnTeam");
@@ -41,6 +42,10 @@ let currentGameState = null; // آخر نسخة من game/current
 let currentScores = { team1: 0, team2: 0 };
 let currentTurnTeam = 1;
 let currentTeamNames = { ...DEFAULT_TEAM_NAMES };
+
+// السؤال التالي بعد أرشفة السؤال الحالي — نحسبه وقت الأرشفة (قبل الحذف من
+// القائمة النشطة) لأن الحذف يكسر البحث بالفهرس لاحقًا بزر "السؤال التالي"
+let archivedNextEntry = null; // {category, questionId, nextEntry}
 
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -146,6 +151,88 @@ document.getElementById("btnWrongAnswer").addEventListener("click", () => {
   setTurnTeam(currentTurnTeam === 1 ? 2 : 1);
   currentRef.child("wrongFlashAt").set(Date.now());
 });
+
+// ---------- أرشيف الأسئلة اللي خلصت ----------
+let archiveExpanded = false;
+
+document.getElementById("btnToggleArchive").addEventListener("click", () => {
+  archiveExpanded = !archiveExpanded;
+  document.getElementById("archiveList").classList.toggle("hidden", !archiveExpanded);
+  document.getElementById("archiveCaret").classList.toggle("is-open", archiveExpanded);
+});
+
+questionsArchiveRef.on("value", (snapshot) => {
+  const data = snapshot.val() || {};
+  const listEl = document.getElementById("archiveList");
+  const categories = Object.keys(data);
+
+  let total = 0;
+  categories.forEach((category) => {
+    total += Object.keys(data[category] || {}).length;
+  });
+  document.getElementById("archiveCount").textContent = total;
+
+  if (categories.length === 0) {
+    listEl.innerHTML = '<p class="empty-note">ولا سؤال أُرشف بعد.</p>';
+    return;
+  }
+
+  listEl.innerHTML = "";
+  categories.forEach((category) => {
+    const questionsInCat = data[category] || {};
+    const groupDiv = document.createElement("div");
+    groupDiv.className = "category-group";
+
+    const heading = document.createElement("h3");
+    heading.textContent = category;
+    groupDiv.appendChild(heading);
+
+    Object.keys(questionsInCat).forEach((qId) => {
+      const q = questionsInCat[qId];
+      const answerCount = Array.isArray(q.answers) ? q.answers.length : 0;
+      const row = document.createElement("div");
+      row.className = "archive-item";
+      row.innerHTML = `
+        <span class="archive-item-q">${escapeHtml(q.title || "")}</span>
+        <span class="archive-item-a">${answerCount} إجابات</span>
+      `;
+      groupDiv.appendChild(row);
+    });
+
+    listEl.appendChild(groupDiv);
+  });
+});
+
+// لو السؤال خلص (كل إجاباته مكشوفة)، ينشال من القائمة النشطة (questions)
+// وينتقل للأرشيف (questionsArchive) — نفس محتوى بنك الأسئلة الأصلي بدون
+// حالة revealed، عشان لو رجع يُستورد لاحقًا يرجع سؤال نظيف
+function isFullyRevealed(state) {
+  return !!state && Array.isArray(state.answers) && state.answers.length > 0 && state.answers.every((a) => a.revealed);
+}
+
+function archiveCurrentQuestion() {
+  if (!currentGameState) return;
+  const { category, questionId } = currentGameState;
+
+  const idx = flatQuestions.findIndex((q) => q.category === category && q.id === questionId);
+  if (idx === -1) return; // انأرشف أصلًا، تجاهل (يمنع التكرار)
+
+  const entry = flatQuestions[idx];
+  archivedNextEntry = {
+    category,
+    questionId,
+    nextEntry: flatQuestions[idx + 1] || null,
+  };
+
+  const updates = {};
+  updates[`questions/${category}/${questionId}`] = null;
+  updates[`questionsArchive/${category}/${questionId}`] = {
+    title: entry.title,
+    hint: entry.hint,
+    answers: entry.answers,
+  };
+  db.ref().update(updates);
+}
 
 // ---------- تحميل قائمة الأسئلة وبناء قائمة الاختيار ----------
 questionsRef.on("value", (snapshot) => {
@@ -356,6 +443,7 @@ document.getElementById("btnRevealAll").addEventListener("click", () => {
     updates[`answers/${index}/revealed`] = true;
   });
   currentRef.update(updates);
+  archiveCurrentQuestion();
 });
 
 document.getElementById("btnReset").addEventListener("click", () => {
@@ -369,7 +457,32 @@ document.getElementById("btnReset").addEventListener("click", () => {
 });
 
 document.getElementById("btnNext").addEventListener("click", () => {
-  if (!currentGameState || flatQuestions.length === 0) return;
+  if (!currentGameState) return;
+
+  // لو السؤال الحالي خلص (كل إجاباته مكشوفة) وما انأرشف بعد (ما ضغط
+  // "إظهار كل الإجابات")، أرشفه الآن قبل الانتقال
+  if (isFullyRevealed(currentGameState)) {
+    archiveCurrentQuestion();
+  }
+
+  // لو السؤال الحالي انأرشف (الآن أو قبل شوي بـ"إظهار كل الإجابات")، استخدم
+  // "التالي" المحسوب وقت الأرشفة بدل البحث بالفهرس — لأنه انحذف من flatQuestions
+  if (
+    archivedNextEntry &&
+    archivedNextEntry.category === currentGameState.category &&
+    archivedNextEntry.questionId === currentGameState.questionId
+  ) {
+    const nextEntry = archivedNextEntry.nextEntry;
+    archivedNextEntry = null;
+    if (!nextEntry) {
+      alert("لا يوجد سؤال تالي — هذا آخر سؤال بالقائمة.");
+      return;
+    }
+    loadQuestion(nextEntry);
+    return;
+  }
+
+  if (flatQuestions.length === 0) return;
 
   const currentIndex = flatQuestions.findIndex(
     (q) => q.category === currentGameState.category && q.id === currentGameState.questionId
