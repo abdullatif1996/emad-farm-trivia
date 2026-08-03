@@ -27,13 +27,14 @@
   <div class="top-bar">
     <h1>أسرع واحد يضغط</h1>
     <div style="display:flex; align-items:center; gap:14px;">
+      <span id="topCategoryBadge" class="category-badge hidden"></span>
       <div id="connectionStatus" class="connection-status">
         <span class="status-dot"></span>
         <span class="status-text">جاري الاتصال...</span>
       </div>
       <div class="top-bar-links">
-        <a href="index.html">الرئيسية</a>
-        <a href="host.html">اللعبة الأولى</a>
+        <a href="host.html">قائمة الهوست</a>
+        <a href="host1.html">اللعبة الأولى</a>
       </div>
     </div>
   </div>
@@ -50,6 +51,16 @@
       </div>
     </div>
 
+    <div class="panel archive-panel">
+      <button type="button" class="archive-toggle" id="btnToggleArchive">
+        <span>الأرشيف <span class="archive-count" id="archiveCount">0</span></span>
+        <span class="archive-caret" id="archiveCaret">‹</span>
+      </button>
+      <div id="archiveList" class="archive-list hidden">
+        <p class="empty-note">ولا سؤال أُرشف بعد.</p>
+      </div>
+    </div>
+
     <div class="panel" id="questionPickerPanel">
       <h2>اختيار سؤال</h2>
       <div id="questionPickList">
@@ -57,18 +68,20 @@
       </div>
     </div>
 
-    <div class="panel" id="currentQuestionPanel" style="display:none;">
-      <div class="btn-row" style="margin-top:0; margin-bottom:14px;">
-        <button class="btn btn-sm" id="btnChangeQuestion2">← تغيير السؤال</button>
-      </div>
+    <div id="currentQuestionPanel" style="display:none;">
+      <div class="panel">
+        <div class="btn-row" style="margin-top:0; margin-bottom:14px;">
+          <button class="btn btn-sm" id="btnChangeQuestion2">← تغيير السؤال</button>
+        </div>
 
-      <h2>السؤال الحالي (يظهر لك بس)</h2>
-      <div class="current-question-title" id="cq2Question"></div>
-      <div class="current-question-hint" id="cq2Answer"></div>
+        <h2>السؤال الحالي (يظهر لك بس)</h2>
+        <div class="current-question-title" id="cq2Question"></div>
+        <div class="current-question-hint" id="cq2Answer"></div>
 
-      <div class="btn-row" style="margin-top:0; margin-bottom:16px;">
-        <button class="btn btn-primary" id="btnStartTyping">ابدأ الكتابة</button>
-        <button class="btn" id="btnNext2">السؤال التالي</button>
+        <div class="btn-row" style="margin-bottom:0;">
+          <button class="btn btn-primary" id="btnStartTyping">ابدأ الكتابة</button>
+          <button class="btn" id="btnNext2">السؤال التالي</button>
+        </div>
       </div>
 
       <div class="panel" id="buzzedPanel" style="display:none;">

@@ -111,7 +111,17 @@ function updateBuzzButtonState() {
 currentRef.on("value", (snapshot) => {
   currentGameState = snapshot.val();
   updateBuzzButtonState();
+  updateTopCategoryBadge();
 });
+
+function updateTopCategoryBadge() {
+  const badge = document.getElementById("topCategoryBadge");
+  if (!badge) return;
+  const data = currentGameState;
+  const category = data && data.question ? data.category || "" : "";
+  badge.textContent = category;
+  badge.classList.toggle("hidden", !category);
+}
 
 document.getElementById("btnBuzz").addEventListener("click", () => {
   if (!myName) return;

@@ -13,26 +13,22 @@
 
   <div class="landing">
     <div>
-      <h1>لعبة مزرعة عماد الجديدة</h1>
-      <p class="subtitle">اختر الصفحة المناسبة لجهازك</p>
+      <h1 id="secretTitle">لعبة مزرعة عماد الجديدة</h1>
+      <p class="subtitle">انضم للعبة من جوالك</p>
     </div>
 
     <div class="landing-links">
-      <a class="big-link" href="host.html">
-        لوحة التحكم (الهوست)
-        <small>لجوال مدير اللعبة فقط — يتحكم بالأسئلة والإجابات</small>
-      </a>
-      <a class="big-link" href="display.html">
-        شاشة العرض
-        <small>تُعرض على التلفزيون أو الشاشة الكبيرة أمام الجميع</small>
-      </a>
-      <a class="big-link" href="game2.html">
-        لعبة أسرع واحد يضغط
-        <small>لعبة ثانية بنظام الأزرار — لوحة تحكم أو انضمام كلاعب</small>
+      <a class="big-link" href="player.html">
+        انضم كلاعب
+        <small>اكتب اسمك وجهّز إصبعك لزر "إجابة!"</small>
       </a>
     </div>
 
-    <a class="landing-footer-link" href="admin.html">إدارة الأسئلة</a>
+    <div class="landing-links hidden" id="hostRevealPanel">
+      <a class="big-link" href="host.html">الهوست</a>
+    </div>
   </div>
+
+  <script src="js/index-gate.js"></script>
 </body>
 </html>

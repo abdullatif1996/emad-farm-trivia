@@ -12,6 +12,20 @@ let currentScores = { team1: 0, team2: 0 };
 let currentTurnTeam = 1;
 let currentTeamNames = { ...DEFAULT_TEAM_NAMES };
 
+// ---------- شارة التصنيف المشتركة — تعكس وضع اللعبة النشط فقط ----------
+// (game1 و game2 كل وحدة تحدّث نسختها من التصنيف، والشارة تعرض نسخة
+// الوضع النشط بس، عشان ما تعرض تصنيف قديم من الوضع الثاني)
+let displayMode = "game1";
+let game1Category = "";
+let game2Category = "";
+
+function refreshCategoryBadge() {
+  const categoryBadge = document.getElementById("categoryBadge");
+  const category = displayMode === "game2" ? game2Category : game1Category;
+  categoryBadge.textContent = category;
+  categoryBadge.classList.toggle("hidden", !category);
+}
+
 // ---------- مؤثرات صوتية (Web Audio API، بدون ملف خارجي) ----------
 // AudioContext واحد مشترك للصفحة كلها — يُنشأ (أو يُفعّل) مرة وحدة بضغطة المستخدم
 // على بوابة "اضغط لتفعيل الصوت"، لأن متصفحات الجوال تمنع الصوت بدون تفاعل مباشر.
@@ -244,19 +258,19 @@ currentRef.on("value", (snapshot) => {
   const emptyState = document.getElementById("emptyState");
   const preparingState = document.getElementById("preparingState");
   const questionView = document.getElementById("questionView");
-  const categoryBadge = document.getElementById("categoryBadge");
 
   if (!data || !Array.isArray(data.answers) || data.answers.length === 0) {
     emptyState.classList.remove("hidden");
     preparingState.classList.add("hidden");
     questionView.classList.add("hidden");
-    categoryBadge.classList.add("hidden");
+    game1Category = "";
+    refreshCategoryBadge();
     previousRevealed = [];
     return;
   }
 
-  categoryBadge.textContent = data.category || "";
-  categoryBadge.classList.toggle("hidden", !data.category);
+  game1Category = data.category || "";
+  refreshCategoryBadge();
 
   checkWrongFlash(data.wrongFlashAt);
 
@@ -343,8 +357,10 @@ const CHAR_DELAY_MS = 90; // نفس القيمة المستخدمة بـ host2.j
 // ---------- التبديل بين وضعي اللعبة ----------
 activeGameRef.on("value", (snapshot) => {
   const mode = snapshot.val() === "game2" ? "game2" : "game1";
+  displayMode = mode;
   document.getElementById("game1Mode").classList.toggle("hidden", mode !== "game1");
   document.getElementById("game2Mode").classList.toggle("hidden", mode !== "game2");
+  refreshCategoryBadge();
 });
 
 // ---------- لوحة نقاط اللاعبين ----------
@@ -479,5 +495,7 @@ current2Ref.on("value", (snapshot) => {
     game2Data && game2Data.wrongFlashAt,
     game2Data && game2Data.lastWrongPlayer ? `${game2Data.lastWrongPlayer}: إجابة خاطئة` : undefined
   );
+  game2Category = game2Data && game2Data.question ? game2Data.category || "" : "";
+  refreshCategoryBadge();
   renderGame2();
 });

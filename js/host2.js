@@ -31,12 +31,17 @@ function attemptLogin() {
 const CHAR_DELAY_MS = 90; // نفس القيمة المستخدمة بـ display.js و player.js
 
 const questions2Ref = db.ref("questions2");
+const questions2ArchiveRef = db.ref("questions2Archive");
 const currentRef = db.ref("game2/current");
 const playersRef = db.ref("game2/players");
 
 let flatQuestions = []; // [{category, id, question, answer}]
 let currentGameState = null; // آخر نسخة من game2/current
 let currentAnswer = ""; // الإجابة الصحيحة للسؤال الحالي — تُحفظ محليًا فقط، ما تُكتب لقاعدة البيانات
+
+// السؤال التالي بعد أرشفة السؤال الحالي — نحسبه وقت الأرشفة (قبل الحذف من
+// القائمة النشطة) لأن الحذف يكسر البحث بالفهرس لاحقًا بزر "السؤال التالي"
+let archivedNextEntry = null; // {category, questionId, nextEntry}
 
 let pickerVisible = true;
 let visibilityInitialized = false;
@@ -76,6 +81,56 @@ document.getElementById("btnResetGame").addEventListener("click", () => {
   if (!confirm("إعادة تعيين اللعبة سيمسح كل اللاعبين ونقاطهم والسؤال الحالي. متابعة؟")) return;
   playersRef.remove();
   currentRef.remove();
+});
+
+// ---------- أرشيف الأسئلة المُجابة ----------
+let archiveExpanded = false;
+
+document.getElementById("btnToggleArchive").addEventListener("click", () => {
+  archiveExpanded = !archiveExpanded;
+  document.getElementById("archiveList").classList.toggle("hidden", !archiveExpanded);
+  document.getElementById("archiveCaret").classList.toggle("is-open", archiveExpanded);
+});
+
+questions2ArchiveRef.on("value", (snapshot) => {
+  const data = snapshot.val() || {};
+  const listEl = document.getElementById("archiveList");
+  const categories = Object.keys(data);
+
+  let total = 0;
+  categories.forEach((category) => {
+    total += Object.keys(data[category] || {}).length;
+  });
+  document.getElementById("archiveCount").textContent = total;
+
+  if (categories.length === 0) {
+    listEl.innerHTML = '<p class="empty-note">ولا سؤال أُرشف بعد.</p>';
+    return;
+  }
+
+  listEl.innerHTML = "";
+  categories.forEach((category) => {
+    const questionsInCat = data[category] || {};
+    const groupDiv = document.createElement("div");
+    groupDiv.className = "category-group";
+
+    const heading = document.createElement("h3");
+    heading.textContent = category;
+    groupDiv.appendChild(heading);
+
+    Object.keys(questionsInCat).forEach((qId) => {
+      const q = questionsInCat[qId];
+      const row = document.createElement("div");
+      row.className = "archive-item";
+      row.innerHTML = `
+        <span class="archive-item-q">${escapeHtml(q.question || "")}</span>
+        <span class="archive-item-a">${escapeHtml(q.answer || "")}</span>
+      `;
+      groupDiv.appendChild(row);
+    });
+
+    listEl.appendChild(groupDiv);
+  });
 });
 
 // ---------- تحميل قائمة الأسئلة وبناء قائمة الاختيار ----------
@@ -186,7 +241,17 @@ currentRef.on("value", (snapshot) => {
   renderCurrentQuestion();
   updatePanelVisibility();
   highlightActivePick();
+  updateTopCategoryBadge();
 });
+
+function updateTopCategoryBadge() {
+  const badge = document.getElementById("topCategoryBadge");
+  if (!badge) return;
+  const hasQuestion = currentGameState && !!currentGameState.question;
+  const category = hasQuestion ? currentGameState.category || "" : "";
+  badge.textContent = category;
+  badge.classList.toggle("hidden", !category);
+}
 
 function updatePanelVisibility() {
   const hasQuestion = currentGameState && !!currentGameState.question;
@@ -246,6 +311,7 @@ document.getElementById("btnStartTyping").addEventListener("click", () => {
 document.getElementById("btnJudgeCorrect").addEventListener("click", () => {
   if (!currentGameState || !currentGameState.buzzedBy) return;
   const playerName = currentGameState.buzzedBy;
+  const { category, questionId } = currentGameState;
 
   playersRef.child(playerName).child("score").transaction((score) => (score || 0) + 1);
 
@@ -255,6 +321,23 @@ document.getElementById("btnJudgeCorrect").addEventListener("click", () => {
     revealedCharsAtPause: currentGameState.question.length,
     judgement: "correct",
   });
+
+  // أرشفة السؤال: يُنقل من القائمة النشطة (questions2) إلى الأرشيف
+  // (questions2Archive) بنفس اللحظة، عشان ما يتكرر باللعب من جديد
+  const idx = flatQuestions.findIndex((q) => q.category === category && q.id === questionId);
+  archivedNextEntry = {
+    category,
+    questionId,
+    nextEntry: idx !== -1 ? flatQuestions[idx + 1] || null : null,
+  };
+
+  const archiveUpdates = {};
+  archiveUpdates[`questions2/${category}/${questionId}`] = null;
+  archiveUpdates[`questions2Archive/${category}/${questionId}`] = {
+    question: currentGameState.question,
+    answer: currentAnswer,
+  };
+  db.ref().update(archiveUpdates);
 });
 
 const GRACE_MS = 4000; // مهلة الفرصة المفتوحة لباقي اللاعبين بعد إجابة خاطئة
@@ -304,7 +387,26 @@ setInterval(tryAutoResumeGame2, 300);
 
 // ---------- السؤال التالي ----------
 document.getElementById("btnNext2").addEventListener("click", () => {
-  if (!currentGameState || flatQuestions.length === 0) return;
+  if (!currentGameState) return;
+
+  // لو السؤال الحالي انأرشف قبل شوي (جواب صح)، استخدم "التالي" المحسوب
+  // وقتها بدل البحث بالفهرس — لأنه انحذف من flatQuestions ومو موجود فيها
+  if (
+    archivedNextEntry &&
+    archivedNextEntry.category === currentGameState.category &&
+    archivedNextEntry.questionId === currentGameState.questionId
+  ) {
+    const nextEntry = archivedNextEntry.nextEntry;
+    archivedNextEntry = null;
+    if (!nextEntry) {
+      alert("لا يوجد سؤال تالي — هذا آخر سؤال بالقائمة.");
+      return;
+    }
+    loadQuestion(nextEntry);
+    return;
+  }
+
+  if (flatQuestions.length === 0) return;
 
   const currentIndex = flatQuestions.findIndex(
     (q) => q.category === currentGameState.category && q.id === currentGameState.questionId

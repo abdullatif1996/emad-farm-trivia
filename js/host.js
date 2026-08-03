@@ -267,7 +267,17 @@ currentRef.on("value", (snapshot) => {
   renderCurrentQuestion();
   updatePanelVisibility();
   highlightActivePick();
+  updateTopCategoryBadge();
 });
+
+function updateTopCategoryBadge() {
+  const badge = document.getElementById("topCategoryBadge");
+  if (!badge) return;
+  const hasQuestion = currentGameState && Array.isArray(currentGameState.answers) && currentGameState.answers.length > 0;
+  const category = hasQuestion ? currentGameState.category || "" : "";
+  badge.textContent = category;
+  badge.classList.toggle("hidden", !category);
+}
 
 function updatePanelVisibility() {
   const hasQuestion = currentGameState && Array.isArray(currentGameState.answers) && currentGameState.answers.length > 0;
