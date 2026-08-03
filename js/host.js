@@ -23,8 +23,6 @@ function attemptLogin() {
     sessionStorage.setItem("hostAuthed", "1");
     errorEl.classList.add("hidden");
     showHostPanel();
-    // فتح لوحة الهوست الأولى يحوّل شاشة العرض تلقائيًا لوضع اللعبة الأولى
-    db.ref("game2/activeGame").set("game1");
   } else {
     errorEl.classList.remove("hidden");
   }
@@ -241,6 +239,8 @@ function loadQuestion(entry) {
   updatePanelVisibility();
   highlightActivePick();
 
+  // اختيار أي سؤال من اللعبة الأولى يحوّل شاشة العرض فورًا لوضع اللعبة الأولى
+  db.ref("game2/activeGame").set("game1");
   currentRef.set(newState);
 }
 
@@ -257,6 +257,11 @@ currentRef.on("value", (snapshot) => {
     const hasQuestion = currentGameState && Array.isArray(currentGameState.answers) && currentGameState.answers.length > 0;
     pickerVisible = !hasQuestion;
     visibilityInitialized = true;
+    // فتح الصفحة وفيه سؤال محمّل مسبقًا (من جلسة سابقة) يحوّل شاشة العرض
+    // فورًا لوضع اللعبة الأولى، حتى لو آخر شي شغّلته شاشة العرض كان اللعبة الثانية
+    if (hasQuestion) {
+      db.ref("game2/activeGame").set("game1");
+    }
   }
 
   renderCurrentQuestion();

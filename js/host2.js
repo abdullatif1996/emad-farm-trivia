@@ -23,8 +23,6 @@ function attemptLogin() {
     sessionStorage.setItem("host2Authed", "1");
     errorEl.classList.add("hidden");
     showHostPanel();
-    // فتح لوحة الهوست الثاني يحوّل شاشة العرض تلقائيًا لوضع اللعبة الثانية
-    db.ref("game2/activeGame").set("game2");
   } else {
     errorEl.classList.remove("hidden");
   }
@@ -165,6 +163,8 @@ function loadQuestion(entry) {
   updatePanelVisibility();
   highlightActivePick();
 
+  // بدء سؤال فعلي من اللعبة الثانية هو اللحظة الوحيدة اللي تحوّل شاشة العرض لوضع اللعبة الثانية
+  db.ref("game2/activeGame").set("game2");
   currentRef.set(newState);
 }
 
