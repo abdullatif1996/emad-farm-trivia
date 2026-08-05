@@ -31,7 +31,6 @@ function attemptLogin() {
 const CHAR_DELAY_MS = 90; // نفس القيمة المستخدمة بـ display.js و player.js
 
 const questions2Ref = db.ref("questions2");
-const questions2ArchiveRef = db.ref("questions2Archive");
 const currentRef = db.ref("game2/current");
 const playersRef = db.ref("game2/players");
 const pendingPlayersRef = db.ref("game2/pendingPlayers");
@@ -163,70 +162,6 @@ function approvePlayer(name) {
   db.ref("game2").update(updates);
 }
 
-// ---------- أرشيف الأسئلة المُجابة ----------
-let archiveExpanded = false;
-
-document.getElementById("btnToggleArchive").addEventListener("click", () => {
-  archiveExpanded = !archiveExpanded;
-  document.getElementById("archiveList").classList.toggle("hidden", !archiveExpanded);
-  document.getElementById("archiveCaret").classList.toggle("is-open", archiveExpanded);
-});
-
-// أرشفة سؤال هنا مؤشر بصري بس (لتذكير الهوست إنه استُخدم قبل) — لا تحذفه
-// من القائمة النشطة، يفضل قابل للاختيار عادي زي أي سؤال ثاني
-let archivedKeys = new Set(); // "category::qId" لكل سؤال بالأرشيف — للتمييز بقائمة الاختيار
-
-questions2ArchiveRef.on("value", (snapshot) => {
-  const data = snapshot.val() || {};
-  const listEl = document.getElementById("archiveList");
-  const categories = Object.keys(data);
-
-  archivedKeys = new Set();
-  let total = 0;
-  categories.forEach((category) => {
-    Object.keys(data[category] || {}).forEach((qId) => {
-      archivedKeys.add(category + "::" + qId);
-    });
-    total += Object.keys(data[category] || {}).length;
-  });
-  document.getElementById("archiveCount").textContent = total;
-  renderQuestionPickList();
-
-  if (categories.length === 0) {
-    listEl.innerHTML = '<p class="empty-note">ولا سؤال أُرشف بعد.</p>';
-    return;
-  }
-
-  listEl.innerHTML = "";
-  categories.forEach((category) => {
-    const questionsInCat = data[category] || {};
-    const groupDiv = document.createElement("div");
-    groupDiv.className = "category-group";
-
-    const heading = document.createElement("h3");
-    heading.textContent = category;
-    groupDiv.appendChild(heading);
-
-    Object.keys(questionsInCat).forEach((qId) => {
-      const q = questionsInCat[qId];
-      const entry = { category, id: qId, question: q.question || "", answer: q.answer || "" };
-
-      // زر فعلي (مو div) وله addEventListener عشان يفتح نفس السؤال من جديد
-      // بالضبط زي أي سؤال بقائمة الاختيار — الأرشيف مؤشر بصري بس، مو قيد
-      const row = document.createElement("button");
-      row.type = "button";
-      row.className = "archive-item";
-      row.innerHTML = `
-        <span class="archive-item-q">${escapeHtml(q.question || "")}</span>
-        <span class="archive-item-a">${escapeHtml(q.answer || "")}</span>
-      `;
-      row.addEventListener("click", () => loadQuestion(entry));
-      groupDiv.appendChild(row);
-    });
-
-    listEl.appendChild(groupDiv);
-  });
-});
 
 // ---------- تحميل قائمة الأسئلة وبناء قائمة الاختيار (أكورديون: فئة وحدة مفتوحة بنفس الوقت) ----------
 let lastQuestions2Data = {};
@@ -279,12 +214,12 @@ function renderQuestionPickList() {
       };
       flatQuestions.push(entry);
 
-      const isUsed = archivedKeys.has(category + "::" + qId);
+      const isUsed = q.used === true;
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "question-pick-btn" + (isUsed ? " is-used" : "");
       btn.innerHTML = isUsed
-        ? `<span class="question-pick-text">${escapeHtml(entry.question || "(بدون نص)")}</span><span class="used-badge">✓ مستخدم سابقًا</span>`
+        ? `<span class="question-pick-text">${escapeHtml(entry.question || "(بدون نص)")}</span><span class="used-badge">✓ تم</span>`
         : escapeHtml(entry.question || "(بدون نص)");
       btn.dataset.category = category;
       btn.dataset.qid = qId;
@@ -441,12 +376,9 @@ document.getElementById("btnJudgeCorrect").addEventListener("click", () => {
     judgement: "correct",
   });
 
-  // أرشفة السؤال هنا مؤشر بصري بس (نسخ لـ questions2Archive) — يفضل موجود
-  // بالقائمة النشطة (questions2) عادي، عشان يقدر الهوست يختاره ويعيد استخدامه
-  db.ref(`questions2Archive/${category}/${questionId}`).set({
-    question: currentGameState.question,
-    answer: currentAnswer,
-  });
+  // نعلّم السؤال "used" بمكانه الأصلي بـquestions2 مباشرة — مؤشر بصري بس،
+  // يبقى موجود بالقائمة النشطة عادي، عشان يقدر الهوست يختاره ويعيد استخدامه
+  db.ref(`questions2/${category}/${questionId}/used`).set(true);
 });
 
 const GRACE_MS = 4000; // مهلة الفرصة المفتوحة لباقي اللاعبين بعد إجابة خاطئة

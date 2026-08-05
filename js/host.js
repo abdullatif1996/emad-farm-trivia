@@ -29,7 +29,6 @@ function attemptLogin() {
 }
 
 const questionsRef = db.ref("questions");
-const questionsArchiveRef = db.ref("questionsArchive");
 const currentRef = db.ref("game/current");
 const scoresRef = db.ref("game/scores");
 const turnTeamRef = db.ref("game/turnTeam");
@@ -148,91 +147,17 @@ document.getElementById("btnWrongAnswer").addEventListener("click", () => {
   currentRef.child("wrongFlashAt").set(Date.now());
 });
 
-// ---------- أرشيف الأسئلة اللي خلصت ----------
-let archiveExpanded = false;
-
-document.getElementById("btnToggleArchive").addEventListener("click", () => {
-  archiveExpanded = !archiveExpanded;
-  document.getElementById("archiveList").classList.toggle("hidden", !archiveExpanded);
-  document.getElementById("archiveCaret").classList.toggle("is-open", archiveExpanded);
-});
-
-// أرشفة سؤال هنا مؤشر بصري بس (لتذكير الهوست إنه استُخدم قبل) — لا تحذفه
-// من القائمة النشطة، يفضل قابل للاختيار عادي زي أي سؤال ثاني
-let archivedKeys = new Set(); // "category::qId" لكل سؤال بالأرشيف — للتمييز بقائمة الاختيار
-
-questionsArchiveRef.on("value", (snapshot) => {
-  const data = snapshot.val() || {};
-  const listEl = document.getElementById("archiveList");
-  const categories = Object.keys(data);
-
-  archivedKeys = new Set();
-  let total = 0;
-  categories.forEach((category) => {
-    Object.keys(data[category] || {}).forEach((qId) => {
-      archivedKeys.add(category + "::" + qId);
-    });
-    total += Object.keys(data[category] || {}).length;
-  });
-  document.getElementById("archiveCount").textContent = total;
-  renderQuestionPickList();
-
-  if (categories.length === 0) {
-    listEl.innerHTML = '<p class="empty-note">ولا سؤال أُرشف بعد.</p>';
-    return;
-  }
-
-  listEl.innerHTML = "";
-  categories.forEach((category) => {
-    const questionsInCat = data[category] || {};
-    const groupDiv = document.createElement("div");
-    groupDiv.className = "category-group";
-
-    const heading = document.createElement("h3");
-    heading.textContent = category;
-    groupDiv.appendChild(heading);
-
-    Object.keys(questionsInCat).forEach((qId) => {
-      const q = questionsInCat[qId];
-      const answers = Array.isArray(q.answers) ? q.answers : Object.values(q.answers || {});
-      const entry = { category, id: qId, title: q.title || "", hint: q.hint || "", answers };
-
-      // زر فعلي (مو div) وله addEventListener عشان يفتح نفس السؤال من جديد
-      // بالضبط زي أي سؤال بقائمة الاختيار — الأرشيف مؤشر بصري بس، مو قيد
-      const row = document.createElement("button");
-      row.type = "button";
-      row.className = "archive-item";
-      row.innerHTML = `
-        <span class="archive-item-q">${escapeHtml(q.title || "")}</span>
-        <span class="archive-item-a">${answers.length} إجابات</span>
-      `;
-      row.addEventListener("click", () => loadQuestion(entry));
-      groupDiv.appendChild(row);
-    });
-
-    listEl.appendChild(groupDiv);
-  });
-});
-
-// لو السؤال خلص (كل إجاباته مكشوفة)، ينسخ للأرشيف (questionsArchive) — نفس
-// محتوى بنك الأسئلة الأصلي بدون حالة revealed — بس يفضل موجود بالقائمة
-// النشطة (questions) عادي، عشان يقدر الهوست يختاره ويعيد استخدامه من جديد
+// لو السؤال خلص (كل إجاباته مكشوفة)، نعلّمه "used" بمكانه الأصلي بـquestions
+// مباشرة — مؤشر بصري بس (شارة "تم" بقائمة الاختيار)، يبقى قابل للاختيار
+// وإعادة الاستخدام عادي زي أي سؤال ثاني
 function isFullyRevealed(state) {
   return !!state && Array.isArray(state.answers) && state.answers.length > 0 && state.answers.every((a) => a.revealed);
 }
 
-function archiveCurrentQuestion() {
+function markQuestionUsed() {
   if (!currentGameState) return;
   const { category, questionId } = currentGameState;
-
-  const entry = flatQuestions.find((q) => q.category === category && q.id === questionId);
-  if (!entry) return;
-
-  db.ref(`questionsArchive/${category}/${questionId}`).set({
-    title: entry.title,
-    hint: entry.hint,
-    answers: entry.answers,
-  });
+  db.ref(`questions/${category}/${questionId}/used`).set(true);
 }
 
 // ---------- تحميل قائمة الأسئلة وبناء قائمة الاختيار (أكورديون: فئة وحدة مفتوحة بنفس الوقت) ----------
@@ -287,12 +212,12 @@ function renderQuestionPickList() {
       };
       flatQuestions.push(entry);
 
-      const isUsed = archivedKeys.has(category + "::" + qId);
+      const isUsed = q.used === true;
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "question-pick-btn" + (isUsed ? " is-used" : "");
       btn.innerHTML = isUsed
-        ? `<span class="question-pick-text">${escapeHtml(entry.title || "(بدون عنوان)")}</span><span class="used-badge">✓ مستخدم سابقًا</span>`
+        ? `<span class="question-pick-text">${escapeHtml(entry.title || "(بدون عنوان)")}</span><span class="used-badge">✓ تم</span>`
         : escapeHtml(entry.title || "(بدون عنوان)");
       btn.dataset.category = category;
       btn.dataset.qid = qId;
@@ -463,7 +388,7 @@ document.getElementById("btnRevealAll").addEventListener("click", () => {
     updates[`answers/${index}/revealed`] = true;
   });
   currentRef.update(updates);
-  archiveCurrentQuestion();
+  markQuestionUsed();
 });
 
 document.getElementById("btnReset").addEventListener("click", () => {
@@ -479,10 +404,10 @@ document.getElementById("btnReset").addEventListener("click", () => {
 document.getElementById("btnNext").addEventListener("click", () => {
   if (!currentGameState) return;
 
-  // لو السؤال الحالي خلص (كل إجاباته مكشوفة) وما انأرشف بعد (ما ضغط
-  // "إظهار كل الإجابات")، أرشفه الآن قبل الانتقال
+  // لو السؤال الحالي خلص (كل إجاباته مكشوفة) وما تعلّم "used" بعد (ما ضغط
+  // "إظهار كل الإجابات")، علّمه الآن قبل الانتقال
   if (isFullyRevealed(currentGameState)) {
-    archiveCurrentQuestion();
+    markQuestionUsed();
   }
 
   if (flatQuestions.length === 0) return;
