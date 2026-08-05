@@ -411,13 +411,18 @@ function renderCurrentQuestion() {
 }
 
 // ---------- بدء الكتابة ----------
+// نستخدم وقت سيرفر Firebase (ServerValue.TIMESTAMP) بدل ساعة جهاز الهوست
+// المحلية (Date.now()) — لأن شاشة العرض تحسب عدد الأحرف الظاهرة بناءً على
+// "الوقت المنقضي منذ typingStartedAt"، ولو اعتمدنا ساعة الهوست المحلية فإن
+// زمن الشبكة بين الهوست والسيرفر (+ أي فرق بسيط بساعة جهاز الهوست) ينضاف
+// لحساب شاشة العرض فيبان أول حرف/كلمة من السؤال فورًا بدل الكشف من الصفر
 document.getElementById("btnStartTyping").addEventListener("click", () => {
   if (!currentGameState || !currentGameState.question) return;
   if (currentGameState.typingActive) return;
 
   currentRef.update({
     typingActive: true,
-    typingStartedAt: Date.now(),
+    typingStartedAt: firebase.database.ServerValue.TIMESTAMP,
   });
 });
 
