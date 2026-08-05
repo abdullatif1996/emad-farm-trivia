@@ -416,6 +416,26 @@ function renderPlayersBar() {
 let game2Data = null;
 let typingFrame = null;
 
+// نتحقق إن typingStartedAt قيمة منطقية قبل الاعتماد عليها بحساب عدد الأحرف
+// الظاهرة. السبب: ServerValue.TIMESTAMP (المستخدم بـhost2.js لضبط بداية
+// الكتابة) قد يوصل شاشة العرض أحيانًا بتحديث وسيط تكون فيه القيمة غير
+// مؤكدة/قديمة قبل ما يصحّحها الخادم بالتحديث التالي مباشرة — لو اعتمدنا
+// عليها كذا نحسب فرق زمني ضخم وهمي فيظهر السؤال كامل للحظة ثم يرجع يصفّر.
+// أي قيمة تبدو غير منطقية (مو رقم، بالمستقبل، أو تعكس جلسة كتابة أطول من
+// أي سيناريو حقيقي) نتجاهلها ونعرض بس نقطة التوقف الحالية لحين يوصل تحديث
+// صحيح — بدون ما نكسر سيناريو إعادة الاتصال وسط كتابة شغّالة فعليًا (المهلة
+// أدناه سخية جدًا مقارنة بأي جلسة كتابة حقيقية لسؤال واحد).
+const MAX_PLAUSIBLE_TYPING_SESSION_MS = 10 * 60 * 1000; // 10 دقائق
+const CLOCK_SKEW_TOLERANCE_MS = 5000;
+
+function isPlausibleTypingStart(startedAt) {
+  if (typeof startedAt !== "number" || !isFinite(startedAt) || startedAt <= 0) return false;
+  const elapsed = Date.now() - startedAt;
+  if (elapsed < -CLOCK_SKEW_TOLERANCE_MS) return false;
+  if (elapsed > MAX_PLAUSIBLE_TYPING_SESSION_MS) return false;
+  return true;
+}
+
 function renderGame2() {
   const emptyState = document.getElementById("g2EmptyState");
   const questionView = document.getElementById("g2QuestionView");
@@ -443,7 +463,7 @@ function renderGame2() {
     const questionText = data.question || "";
     let shown;
 
-    if (data.typingActive && data.typingStartedAt) {
+    if (data.typingActive && data.typingStartedAt && isPlausibleTypingStart(data.typingStartedAt)) {
       const elapsed = Date.now() - data.typingStartedAt;
       shown = Math.min(
         questionText.length,
