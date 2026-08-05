@@ -43,10 +43,6 @@ let currentScores = { team1: 0, team2: 0 };
 let currentTurnTeam = 1;
 let currentTeamNames = { ...DEFAULT_TEAM_NAMES };
 
-// السؤال التالي بعد أرشفة السؤال الحالي — نحسبه وقت الأرشفة (قبل الحذف من
-// القائمة النشطة) لأن الحذف يكسر البحث بالفهرس لاحقًا بزر "السؤال التالي"
-let archivedNextEntry = null; // {category, questionId, nextEntry}
-
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str == null ? "" : String(str);
@@ -161,16 +157,25 @@ document.getElementById("btnToggleArchive").addEventListener("click", () => {
   document.getElementById("archiveCaret").classList.toggle("is-open", archiveExpanded);
 });
 
+// أرشفة سؤال هنا مؤشر بصري بس (لتذكير الهوست إنه استُخدم قبل) — لا تحذفه
+// من القائمة النشطة، يفضل قابل للاختيار عادي زي أي سؤال ثاني
+let archivedKeys = new Set(); // "category::qId" لكل سؤال بالأرشيف — للتمييز بقائمة الاختيار
+
 questionsArchiveRef.on("value", (snapshot) => {
   const data = snapshot.val() || {};
   const listEl = document.getElementById("archiveList");
   const categories = Object.keys(data);
 
+  archivedKeys = new Set();
   let total = 0;
   categories.forEach((category) => {
+    Object.keys(data[category] || {}).forEach((qId) => {
+      archivedKeys.add(category + "::" + qId);
+    });
     total += Object.keys(data[category] || {}).length;
   });
   document.getElementById("archiveCount").textContent = total;
+  renderQuestionPickList();
 
   if (categories.length === 0) {
     listEl.innerHTML = '<p class="empty-note">ولا سؤال أُرشف بعد.</p>';
@@ -203,9 +208,9 @@ questionsArchiveRef.on("value", (snapshot) => {
   });
 });
 
-// لو السؤال خلص (كل إجاباته مكشوفة)، ينشال من القائمة النشطة (questions)
-// وينتقل للأرشيف (questionsArchive) — نفس محتوى بنك الأسئلة الأصلي بدون
-// حالة revealed، عشان لو رجع يُستورد لاحقًا يرجع سؤال نظيف
+// لو السؤال خلص (كل إجاباته مكشوفة)، ينسخ للأرشيف (questionsArchive) — نفس
+// محتوى بنك الأسئلة الأصلي بدون حالة revealed — بس يفضل موجود بالقائمة
+// النشطة (questions) عادي، عشان يقدر الهوست يختاره ويعيد استخدامه من جديد
 function isFullyRevealed(state) {
   return !!state && Array.isArray(state.answers) && state.answers.length > 0 && state.answers.every((a) => a.revealed);
 }
@@ -214,24 +219,14 @@ function archiveCurrentQuestion() {
   if (!currentGameState) return;
   const { category, questionId } = currentGameState;
 
-  const idx = flatQuestions.findIndex((q) => q.category === category && q.id === questionId);
-  if (idx === -1) return; // انأرشف أصلًا، تجاهل (يمنع التكرار)
+  const entry = flatQuestions.find((q) => q.category === category && q.id === questionId);
+  if (!entry) return;
 
-  const entry = flatQuestions[idx];
-  archivedNextEntry = {
-    category,
-    questionId,
-    nextEntry: flatQuestions[idx + 1] || null,
-  };
-
-  const updates = {};
-  updates[`questions/${category}/${questionId}`] = null;
-  updates[`questionsArchive/${category}/${questionId}`] = {
+  db.ref(`questionsArchive/${category}/${questionId}`).set({
     title: entry.title,
     hint: entry.hint,
     answers: entry.answers,
-  };
-  db.ref().update(updates);
+  });
 }
 
 // ---------- تحميل قائمة الأسئلة وبناء قائمة الاختيار (أكورديون: فئة وحدة مفتوحة بنفس الوقت) ----------
@@ -286,10 +281,13 @@ function renderQuestionPickList() {
       };
       flatQuestions.push(entry);
 
+      const isUsed = archivedKeys.has(category + "::" + qId);
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "question-pick-btn";
-      btn.textContent = entry.title || "(بدون عنوان)";
+      btn.className = "question-pick-btn" + (isUsed ? " is-used" : "");
+      btn.innerHTML = isUsed
+        ? `<span class="question-pick-text">${escapeHtml(entry.title || "(بدون عنوان)")}</span><span class="used-badge">✓ مستخدم سابقًا</span>`
+        : escapeHtml(entry.title || "(بدون عنوان)");
       btn.dataset.category = category;
       btn.dataset.qid = qId;
       btn.addEventListener("click", () => loadQuestion(entry));
@@ -479,23 +477,6 @@ document.getElementById("btnNext").addEventListener("click", () => {
   // "إظهار كل الإجابات")، أرشفه الآن قبل الانتقال
   if (isFullyRevealed(currentGameState)) {
     archiveCurrentQuestion();
-  }
-
-  // لو السؤال الحالي انأرشف (الآن أو قبل شوي بـ"إظهار كل الإجابات")، استخدم
-  // "التالي" المحسوب وقت الأرشفة بدل البحث بالفهرس — لأنه انحذف من flatQuestions
-  if (
-    archivedNextEntry &&
-    archivedNextEntry.category === currentGameState.category &&
-    archivedNextEntry.questionId === currentGameState.questionId
-  ) {
-    const nextEntry = archivedNextEntry.nextEntry;
-    archivedNextEntry = null;
-    if (!nextEntry) {
-      alert("لا يوجد سؤال تالي — هذا آخر سؤال بالقائمة.");
-      return;
-    }
-    loadQuestion(nextEntry);
-    return;
   }
 
   if (flatQuestions.length === 0) return;

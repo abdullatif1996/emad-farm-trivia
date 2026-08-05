@@ -927,6 +927,25 @@ body.display-page::before {
   color: var(--brass);
 }
 
+/* مؤشر بصري بس — السؤال يبقى قابل للضغط والاختيار عادي، هذا تمييز لوني خفيف
+   يذكّر الهوست إنه سبق واستخدمه، مو تعطيل أو منع */
+.question-pick-btn.is-used {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ivory-dim);
+}
+
+.used-badge {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--brass-dim);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+}
+
 .question-pick-btn.is-active {
   color: var(--brass);
   border-inline-start: 2px solid var(--brass);
