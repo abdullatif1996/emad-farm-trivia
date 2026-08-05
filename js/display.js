@@ -464,10 +464,13 @@ function renderGame2() {
     let shown;
 
     if (data.typingActive && data.typingStartedAt && isPlausibleTypingStart(data.typingStartedAt)) {
-      const elapsed = Date.now() - data.typingStartedAt;
+      // typingStartDelayMs: مهلة فاضية قبل بداية الكشف الفعلي (تُقرأ من نفس
+      // الحقل اللي كتبه host2.js — عشان تبقى كل الأجهزة متزامنة على نفس القيمة)
+      const startDelay = typeof data.typingStartDelayMs === "number" ? data.typingStartDelayMs : 0;
+      const elapsedSinceRevealStart = Date.now() - data.typingStartedAt - startDelay;
       shown = Math.min(
         questionText.length,
-        (data.revealedCharsAtPause || 0) + Math.floor(elapsed / CHAR_DELAY_MS)
+        (data.revealedCharsAtPause || 0) + Math.floor(Math.max(0, elapsedSinceRevealStart) / CHAR_DELAY_MS)
       );
     } else {
       shown = Math.min(questionText.length, data.revealedCharsAtPause || 0);
@@ -551,6 +554,7 @@ function tryAutoResumeGame2() {
 
     data.typingActive = true;
     data.typingStartedAt = Date.now();
+    data.typingStartDelayMs = 0; // استئناف بعد إجابة خطأ يكمل فورًا بدون مهلة الثانيتين
     data.graceUntil = null;
     return data;
   });

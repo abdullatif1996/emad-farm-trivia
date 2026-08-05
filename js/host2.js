@@ -253,6 +253,7 @@ function loadQuestion(entry) {
     question: entry.question,
     typingActive: false,
     typingStartedAt: null,
+    typingStartDelayMs: 0,
     revealedCharsAtPause: 0,
     buzzedBy: null,
     judgement: null,
@@ -351,6 +352,13 @@ function renderCurrentQuestion() {
 // "الوقت المنقضي منذ typingStartedAt"، ولو اعتمدنا ساعة الهوست المحلية فإن
 // زمن الشبكة بين الهوست والسيرفر (+ أي فرق بسيط بساعة جهاز الهوست) ينضاف
 // لحساب شاشة العرض فيبان أول حرف/كلمة من السؤال فورًا بدل الكشف من الصفر
+//
+// TYPING_START_DELAY_MS: مهلة انتظار (فاضية تمامًا بدون أي حرف) قبل بداية
+// الكشف الفعلي — مكتوبة كحقل بقاعدة البيانات (typingStartDelayMs) بدل
+// setTimeout محلي، عشان تحسبها كل الأجهزة (شاشة العرض وأجهزة اللاعبين)
+// بالاعتماد على نفس typingStartedAt الموثوق من الخادم، فتبقى متزامنة صح
+const TYPING_START_DELAY_MS = 2000;
+
 document.getElementById("btnStartTyping").addEventListener("click", () => {
   if (!currentGameState || !currentGameState.question) return;
   if (currentGameState.typingActive) return;
@@ -358,6 +366,7 @@ document.getElementById("btnStartTyping").addEventListener("click", () => {
   currentRef.update({
     typingActive: true,
     typingStartedAt: firebase.database.ServerValue.TIMESTAMP,
+    typingStartDelayMs: TYPING_START_DELAY_MS,
   });
 });
 
@@ -419,6 +428,7 @@ function tryAutoResumeGame2() {
 
     data.typingActive = true;
     data.typingStartedAt = Date.now();
+    data.typingStartDelayMs = 0; // استئناف بعد إجابة خطأ يكمل فورًا بدون مهلة الثانيتين
     data.graceUntil = null;
     return data;
   });

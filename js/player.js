@@ -199,8 +199,9 @@ document.getElementById("btnBuzz").addEventListener("click", () => {
     let frozenChars;
 
     if (data.typingActive && data.typingStartedAt) {
-      const elapsed = Date.now() - data.typingStartedAt;
-      const extraChars = Math.floor(elapsed / CHAR_DELAY_MS);
+      const startDelay = typeof data.typingStartDelayMs === "number" ? data.typingStartDelayMs : 0;
+      const elapsed = Date.now() - data.typingStartedAt - startDelay;
+      const extraChars = Math.floor(Math.max(0, elapsed) / CHAR_DELAY_MS);
       frozenChars = Math.min(questionText.length, (data.revealedCharsAtPause || 0) + extraChars);
     } else {
       // بفترة السماح الكتابة متوقفة أصلاً بنفس النقطة، ما فيه شي يتحسب
