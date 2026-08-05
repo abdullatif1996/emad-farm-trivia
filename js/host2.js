@@ -40,10 +40,6 @@ let flatQuestions = []; // [{category, id, question, answer}]
 let currentGameState = null; // آخر نسخة من game2/current
 let currentAnswer = ""; // الإجابة الصحيحة للسؤال الحالي — تُحفظ محليًا فقط، ما تُكتب لقاعدة البيانات
 
-// السؤال التالي بعد أرشفة السؤال الحالي — نحسبه وقت الأرشفة (قبل الحذف من
-// القائمة النشطة) لأن الحذف يكسر البحث بالفهرس لاحقًا بزر "السؤال التالي"
-let archivedNextEntry = null; // {category, questionId, nextEntry}
-
 let pickerVisible = true;
 let visibilityInitialized = false;
 
@@ -176,16 +172,25 @@ document.getElementById("btnToggleArchive").addEventListener("click", () => {
   document.getElementById("archiveCaret").classList.toggle("is-open", archiveExpanded);
 });
 
+// أرشفة سؤال هنا مؤشر بصري بس (لتذكير الهوست إنه استُخدم قبل) — لا تحذفه
+// من القائمة النشطة، يفضل قابل للاختيار عادي زي أي سؤال ثاني
+let archivedKeys = new Set(); // "category::qId" لكل سؤال بالأرشيف — للتمييز بقائمة الاختيار
+
 questions2ArchiveRef.on("value", (snapshot) => {
   const data = snapshot.val() || {};
   const listEl = document.getElementById("archiveList");
   const categories = Object.keys(data);
 
+  archivedKeys = new Set();
   let total = 0;
   categories.forEach((category) => {
+    Object.keys(data[category] || {}).forEach((qId) => {
+      archivedKeys.add(category + "::" + qId);
+    });
     total += Object.keys(data[category] || {}).length;
   });
   document.getElementById("archiveCount").textContent = total;
+  renderQuestionPickList();
 
   if (categories.length === 0) {
     listEl.innerHTML = '<p class="empty-note">ولا سؤال أُرشف بعد.</p>';
@@ -204,12 +209,18 @@ questions2ArchiveRef.on("value", (snapshot) => {
 
     Object.keys(questionsInCat).forEach((qId) => {
       const q = questionsInCat[qId];
-      const row = document.createElement("div");
+      const entry = { category, id: qId, question: q.question || "", answer: q.answer || "" };
+
+      // زر فعلي (مو div) وله addEventListener عشان يفتح نفس السؤال من جديد
+      // بالضبط زي أي سؤال بقائمة الاختيار — الأرشيف مؤشر بصري بس، مو قيد
+      const row = document.createElement("button");
+      row.type = "button";
       row.className = "archive-item";
       row.innerHTML = `
         <span class="archive-item-q">${escapeHtml(q.question || "")}</span>
         <span class="archive-item-a">${escapeHtml(q.answer || "")}</span>
       `;
+      row.addEventListener("click", () => loadQuestion(entry));
       groupDiv.appendChild(row);
     });
 
@@ -268,10 +279,13 @@ function renderQuestionPickList() {
       };
       flatQuestions.push(entry);
 
+      const isUsed = archivedKeys.has(category + "::" + qId);
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "question-pick-btn";
-      btn.textContent = entry.question || "(بدون نص)";
+      btn.className = "question-pick-btn" + (isUsed ? " is-used" : "");
+      btn.innerHTML = isUsed
+        ? `<span class="question-pick-text">${escapeHtml(entry.question || "(بدون نص)")}</span><span class="used-badge">✓ مستخدم سابقًا</span>`
+        : escapeHtml(entry.question || "(بدون نص)");
       btn.dataset.category = category;
       btn.dataset.qid = qId;
       btn.addEventListener("click", () => loadQuestion(entry));
@@ -422,22 +436,12 @@ document.getElementById("btnJudgeCorrect").addEventListener("click", () => {
     judgement: "correct",
   });
 
-  // أرشفة السؤال: يُنقل من القائمة النشطة (questions2) إلى الأرشيف
-  // (questions2Archive) بنفس اللحظة، عشان ما يتكرر باللعب من جديد
-  const idx = flatQuestions.findIndex((q) => q.category === category && q.id === questionId);
-  archivedNextEntry = {
-    category,
-    questionId,
-    nextEntry: idx !== -1 ? flatQuestions[idx + 1] || null : null,
-  };
-
-  const archiveUpdates = {};
-  archiveUpdates[`questions2/${category}/${questionId}`] = null;
-  archiveUpdates[`questions2Archive/${category}/${questionId}`] = {
+  // أرشفة السؤال هنا مؤشر بصري بس (نسخ لـ questions2Archive) — يفضل موجود
+  // بالقائمة النشطة (questions2) عادي، عشان يقدر الهوست يختاره ويعيد استخدامه
+  db.ref(`questions2Archive/${category}/${questionId}`).set({
     question: currentGameState.question,
     answer: currentAnswer,
-  };
-  db.ref().update(archiveUpdates);
+  });
 });
 
 const GRACE_MS = 4000; // مهلة الفرصة المفتوحة لباقي اللاعبين بعد إجابة خاطئة
@@ -488,23 +492,6 @@ setInterval(tryAutoResumeGame2, 300);
 // ---------- السؤال التالي ----------
 document.getElementById("btnNext2").addEventListener("click", () => {
   if (!currentGameState) return;
-
-  // لو السؤال الحالي انأرشف قبل شوي (جواب صح)، استخدم "التالي" المحسوب
-  // وقتها بدل البحث بالفهرس — لأنه انحذف من flatQuestions ومو موجود فيها
-  if (
-    archivedNextEntry &&
-    archivedNextEntry.category === currentGameState.category &&
-    archivedNextEntry.questionId === currentGameState.questionId
-  ) {
-    const nextEntry = archivedNextEntry.nextEntry;
-    archivedNextEntry = null;
-    if (!nextEntry) {
-      alert("لا يوجد سؤال تالي — هذا آخر سؤال بالقائمة.");
-      return;
-    }
-    loadQuestion(nextEntry);
-    return;
-  }
 
   if (flatQuestions.length === 0) return;
 
