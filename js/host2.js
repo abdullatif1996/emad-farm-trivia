@@ -53,7 +53,7 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// ---------- قائمة اللاعبين ----------
+// ---------- قائمة اللاعبين — نقاط قابلة للتعديل اليدوي + حذف اللاعب ----------
 playersRef.on("value", (snapshot) => {
   const data = snapshot.val() || {};
   const listEl = document.getElementById("playersList");
@@ -70,13 +70,58 @@ playersRef.on("value", (snapshot) => {
   names.forEach((name) => {
     const row = document.createElement("div");
     row.className = "admin-question-item";
-    row.innerHTML = `
-      <div class="aq-title">${escapeHtml(name)}</div>
-      <div class="aq-meta">${data[name].score || 0} نقطة</div>
-    `;
+
+    const titleEl = document.createElement("div");
+    titleEl.className = "aq-title";
+    titleEl.textContent = name;
+    row.appendChild(titleEl);
+
+    const controls = document.createElement("div");
+    controls.className = "player-score-controls";
+
+    const minusBtn = document.createElement("button");
+    minusBtn.type = "button";
+    minusBtn.className = "team-score-btn";
+    minusBtn.title = "إنقاص نقطة";
+    minusBtn.textContent = "−";
+    minusBtn.addEventListener("click", () => adjustPlayerScore(name, -1));
+    controls.appendChild(minusBtn);
+
+    const scoreEl = document.createElement("div");
+    scoreEl.className = "aq-meta player-score-value";
+    scoreEl.textContent = `${data[name].score || 0} نقطة`;
+    controls.appendChild(scoreEl);
+
+    const plusBtn = document.createElement("button");
+    plusBtn.type = "button";
+    plusBtn.className = "team-score-btn";
+    plusBtn.title = "زيادة نقطة";
+    plusBtn.textContent = "+";
+    plusBtn.addEventListener("click", () => adjustPlayerScore(name, 1));
+    controls.appendChild(plusBtn);
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "player-delete-btn";
+    deleteBtn.title = "حذف اللاعب";
+    deleteBtn.textContent = "🗑";
+    deleteBtn.addEventListener("click", () => deletePlayer(name));
+    controls.appendChild(deleteBtn);
+
+    row.appendChild(controls);
     listEl.appendChild(row);
   });
 });
+
+// تعديل يدوي بالنقاط — مستقل تمامًا عن نظام النقاط التلقائي (حكم صح/غلط)
+function adjustPlayerScore(name, delta) {
+  playersRef.child(name).child("score").transaction((score) => Math.max(0, (score || 0) + delta));
+}
+
+function deletePlayer(name) {
+  if (!confirm(`حذف اللاعب "${name}" نهائيًا من اللعبة؟`)) return;
+  playersRef.child(name).remove();
+}
 
 document.getElementById("btnResetGame").addEventListener("click", () => {
   if (!confirm("إعادة تعيين اللعبة سيمسح كل اللاعبين ونقاطهم والسؤال الحالي. متابعة؟")) return;
