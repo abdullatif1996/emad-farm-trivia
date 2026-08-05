@@ -583,7 +583,7 @@ body.landing-page-bg {
   gap: 1px;
 }
 
-/* ---------- أكورديون فئات الأسئلة (host2.html) — فئة وحدة مفتوحة بنفس الوقت ---------- */
+/* ---------- أكورديون فئات الأسئلة (host.html و host2.html) — فئة وحدة مفتوحة بنفس الوقت ---------- */
 .category-accordion-header {
   width: 100%;
   display: flex;

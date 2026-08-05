@@ -234,9 +234,17 @@ function archiveCurrentQuestion() {
   db.ref().update(updates);
 }
 
-// ---------- تحميل قائمة الأسئلة وبناء قائمة الاختيار ----------
+// ---------- تحميل قائمة الأسئلة وبناء قائمة الاختيار (أكورديون: فئة وحدة مفتوحة بنفس الوقت) ----------
+let lastQuestionsData = {};
+let openCategory = null;
+
 questionsRef.on("value", (snapshot) => {
-  const data = snapshot.val() || {};
+  lastQuestionsData = snapshot.val() || {};
+  renderQuestionPickList();
+});
+
+function renderQuestionPickList() {
+  const data = lastQuestionsData;
   flatQuestions = [];
   const listEl = document.getElementById("questionPickList");
   listEl.innerHTML = "";
@@ -252,12 +260,20 @@ questionsRef.on("value", (snapshot) => {
     const groupDiv = document.createElement("div");
     groupDiv.className = "category-group";
 
-    const heading = document.createElement("h3");
-    heading.textContent = category;
+    const isOpen = openCategory === category;
+
+    const heading = document.createElement("button");
+    heading.type = "button";
+    heading.className = "category-accordion-header" + (isOpen ? " is-open" : "");
+    heading.innerHTML = `<span>${escapeHtml(category)}</span><span class="accordion-caret">›</span>`;
+    heading.addEventListener("click", () => {
+      openCategory = isOpen ? null : category;
+      renderQuestionPickList();
+    });
     groupDiv.appendChild(heading);
 
     const listDiv = document.createElement("div");
-    listDiv.className = "question-pick-list";
+    listDiv.className = "question-pick-list" + (isOpen ? "" : " hidden");
 
     Object.keys(questionsInCat).forEach((qId) => {
       const q = questionsInCat[qId];
@@ -285,7 +301,7 @@ questionsRef.on("value", (snapshot) => {
   });
 
   highlightActivePick();
-});
+}
 
 function highlightActivePick() {
   const buttons = document.querySelectorAll(".question-pick-btn");
