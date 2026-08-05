@@ -13,16 +13,18 @@
     <button type="button" class="audio-unlock-btn" id="btnUnlockAudio">اضغط هنا لتفعيل الصوت</button>
   </div>
 
-  <div style="position:fixed; top:12px; left:12px; z-index:20;">
-    <div id="connectionStatus" class="connection-status">
-      <span class="status-dot"></span>
-      <span class="status-text">جاري الاتصال...</span>
+  <div class="app-topbar">
+    <div class="app-topbar-brand">
+      <span class="brand-badge">ع</span>
+      <span class="brand-name">لعبة مزرعة عماد أبو عز</span>
     </div>
-  </div>
-
-  <div class="top-right-cluster">
-    <div id="categoryBadge" class="category-badge hidden"></div>
-    <div class="site-logo">لعبة مزرعة عماد أبو عز</div>
+    <div class="app-topbar-right">
+      <span id="categoryBadge" class="category-badge hidden"></span>
+      <div id="connectionStatus" class="connection-status">
+        <span class="status-dot"></span>
+        <span class="status-text">جاري الاتصال...</span>
+      </div>
+    </div>
   </div>
 
   <div id="wrongFlash" class="wrong-flash">
@@ -38,13 +40,19 @@
       <div class="scorebar" id="teamScoreboard">
         <div class="scorebar-team" id="team1Card">
           <span class="team-turn-dot" id="team1TurnDot"></span>
-          <span class="scorebar-name" id="team1NameText"></span>
+          <div class="scorebar-info">
+            <span class="scorebar-turn-tag">الدور</span>
+            <span class="scorebar-name" id="team1NameText"></span>
+          </div>
           <span class="scorebar-score" id="team1ScoreText">0</span>
         </div>
         <div class="scorebar-divider"></div>
         <div class="scorebar-team" id="team2Card">
           <span class="team-turn-dot" id="team2TurnDot"></span>
-          <span class="scorebar-name" id="team2NameText"></span>
+          <div class="scorebar-info">
+            <span class="scorebar-turn-tag">الدور</span>
+            <span class="scorebar-name" id="team2NameText"></span>
+          </div>
           <span class="scorebar-score" id="team2ScoreText">0</span>
         </div>
       </div>
@@ -62,13 +70,18 @@
         <p class="preparing-text">الهوست يجهّز السؤال...</p>
       </div>
 
-      <div id="questionView" class="hidden">
+      <div id="questionView" class="question-glass-card hidden">
         <div class="display-header">
           <div class="display-title" id="dTitle"></div>
           <div class="display-hint" id="dHint"></div>
         </div>
         <div class="display-title-rule"></div>
-        <div class="display-counter" id="dCounter"></div>
+        <div class="display-progress-wrap">
+          <div class="display-progress-bar">
+            <div class="display-progress-fill" id="dProgressFill"></div>
+          </div>
+          <div class="display-counter" id="dCounter"></div>
+        </div>
 
         <div class="display-answers" id="dAnswers"></div>
       </div>
@@ -85,7 +98,7 @@
         <div class="g2-question-wrap">
           <span class="g2-question-text" id="g2QuestionText"></span><span class="g2-caret" id="g2Caret"></span>
         </div>
-        <div class="g2-buzz-banner hidden" id="g2BuzzBanner"></div>
+        <div class="g2-buzz-banner" id="g2BuzzBanner"></div>
       </div>
     </div>
   </div>

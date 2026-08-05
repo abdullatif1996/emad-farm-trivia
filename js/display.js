@@ -17,11 +17,11 @@ let currentTeamNames = { ...DEFAULT_TEAM_NAMES };
 // الوضع النشط بس، عشان ما تعرض تصنيف قديم من الوضع الثاني)
 let displayMode = "game1";
 let game1Category = "";
-let game2Category = "";
 
 function refreshCategoryBadge() {
   const categoryBadge = document.getElementById("categoryBadge");
-  const category = displayMode === "game2" ? game2Category : game1Category;
+  // شارة اللعبة الثانية ثابتة باسم اللعبة نفسها بدل تصنيف كل سؤال على حدة
+  const category = displayMode === "game2" ? "أسرع واحد يضغط" : game1Category;
   categoryBadge.textContent = category;
   categoryBadge.classList.toggle("hidden", !category);
 }
@@ -295,6 +295,8 @@ currentRef.on("value", (snapshot) => {
   const revealedCount = data.answers.filter((a) => a.revealed).length;
   document.getElementById("dCounter").innerHTML =
     `تم اكتشاف <span class="counter-highlight">${revealedCount}</span> من ${total}`;
+  document.getElementById("dProgressFill").style.width =
+    (total > 0 ? (revealedCount / total) * 100 : 0) + "%";
 
   // يقود حساب حجم عنوان السؤال (clamp/calc حسب --answer-count، مع حد أعلى
   // بالـ vh عشان ينكمش بالوضع الأفقي أيضًا)
@@ -371,8 +373,15 @@ function escapeHtml2(str) {
   return div.innerHTML;
 }
 
+let lastPlayers2Data = {};
+
 players2Ref.on("value", (snapshot) => {
-  const data = snapshot.val() || {};
+  lastPlayers2Data = snapshot.val() || {};
+  renderPlayersBar();
+});
+
+function renderPlayersBar() {
+  const data = lastPlayers2Data;
   const bar = document.getElementById("playersBar");
   const names = Object.keys(data);
 
@@ -383,17 +392,25 @@ players2Ref.on("value", (snapshot) => {
 
   names.sort((a, b) => (data[b].score || 0) - (data[a].score || 0));
 
+  const topScore = data[names[0]].score || 0;
+  const blockedPlayers =
+    game2Data && Array.isArray(game2Data.blockedPlayers) ? game2Data.blockedPlayers : [];
+
   bar.innerHTML = names
-    .map(
-      (name) => `
-        <div class="player-pill">
+    .map((name) => {
+      const score = data[name].score || 0;
+      const isLeader = score > 0 && score === topScore;
+      const isBlocked = blockedPlayers.includes(name);
+      return `
+        <div class="player-pill${isLeader ? " is-leader" : ""}${isBlocked ? " is-blocked" : ""}">
+          ${isLeader ? '<span class="player-pill-medal">🥇</span>' : ""}
           <span class="player-pill-name">${escapeHtml2(name)}</span>
-          <span class="player-pill-score">${data[name].score || 0}</span>
+          <span class="player-pill-score">${score}</span>
         </div>
-      `
-    )
+      `;
+    })
     .join("");
-});
+}
 
 // ---------- الكتابة التدريجية + حالة الضغط ----------
 let game2Data = null;
@@ -455,25 +472,38 @@ function renderGame2() {
     const buzzCountdownActive = showBuzzCountdown && Date.now() - data.buzzedAt < BUZZ_COUNTDOWN_MS;
 
     if (data.buzzedBy) {
-      bannerEl.classList.remove("hidden");
+      bannerEl.classList.add("is-shown");
       bannerEl.classList.remove("is-grace");
-      // شارة العد التنازلي تلتصق مباشرة باسم اللاعب (قبل نص الحالة)، عشان
-      // تظهر جنب اسمه بالضبط زي المطلوب
-      const countdownHtml = buzzCountdownActive
-        ? ` <span class="g2-buzz-countdown">${buzzSecondsLeft}</span>`
-        : "";
-      bannerEl.innerHTML = isCorrect
-        ? `✓ ${escapeHtml2(data.buzzedBy)} أجاب صح!`
-        : `${escapeHtml2(data.buzzedBy)}${countdownHtml} يجاوب...`;
+      if (isCorrect) {
+        bannerEl.innerHTML = `
+          <span class="g2-banner-check">✓</span>
+          <span class="g2-banner-name">${escapeHtml2(data.buzzedBy)}</span>
+          <span class="g2-banner-text">أجاب صح!</span>
+        `;
+      } else {
+        // حلقة تقدّم صغيرة تُظهر الوقت المتبقي من مهلة الـ5 ثواني (تعبئة تتناقص)،
+        // عرض بصري بس مبني على buzzedAt المحفوظ بقاعدة البيانات
+        const ringPct = buzzCountdownActive
+          ? Math.max(0, Math.min(100, ((data.buzzedAt + BUZZ_COUNTDOWN_MS - Date.now()) / BUZZ_COUNTDOWN_MS) * 100))
+          : 0;
+        const ringHtml = buzzCountdownActive
+          ? `<span class="g2-progress-ring" style="--pct:${ringPct}"><span class="g2-progress-ring-num">${buzzSecondsLeft}</span></span>`
+          : "";
+        bannerEl.innerHTML = `
+          ${ringHtml}
+          <span class="g2-banner-name">${escapeHtml2(data.buzzedBy)}</span>
+          <span class="g2-banner-text">يجاوب الآن...</span>
+        `;
+      }
       bannerEl.classList.toggle("is-correct", isCorrect);
     } else if (inGrace) {
       const secondsLeft = Math.max(0, Math.ceil((data.graceUntil - Date.now()) / 1000));
-      bannerEl.classList.remove("hidden");
+      bannerEl.classList.add("is-shown");
       bannerEl.classList.add("is-grace");
       bannerEl.classList.remove("is-correct");
       bannerEl.textContent = `الفرصة مفتوحة... ${secondsLeft}`;
     } else {
-      bannerEl.classList.add("hidden");
+      bannerEl.classList.remove("is-shown");
       bannerEl.classList.remove("is-correct", "is-grace");
     }
 
@@ -512,7 +542,6 @@ current2Ref.on("value", (snapshot) => {
     game2Data && game2Data.wrongFlashAt,
     game2Data && game2Data.lastWrongPlayer ? `${game2Data.lastWrongPlayer}: إجابة خاطئة` : undefined
   );
-  game2Category = game2Data && game2Data.question ? game2Data.category || "" : "";
-  refreshCategoryBadge();
   renderGame2();
+  renderPlayersBar();
 });
