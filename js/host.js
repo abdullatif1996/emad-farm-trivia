@@ -194,13 +194,19 @@ questionsArchiveRef.on("value", (snapshot) => {
 
     Object.keys(questionsInCat).forEach((qId) => {
       const q = questionsInCat[qId];
-      const answerCount = Array.isArray(q.answers) ? q.answers.length : 0;
-      const row = document.createElement("div");
+      const answers = Array.isArray(q.answers) ? q.answers : Object.values(q.answers || {});
+      const entry = { category, id: qId, title: q.title || "", hint: q.hint || "", answers };
+
+      // زر فعلي (مو div) وله addEventListener عشان يفتح نفس السؤال من جديد
+      // بالضبط زي أي سؤال بقائمة الاختيار — الأرشيف مؤشر بصري بس، مو قيد
+      const row = document.createElement("button");
+      row.type = "button";
       row.className = "archive-item";
       row.innerHTML = `
         <span class="archive-item-q">${escapeHtml(q.title || "")}</span>
-        <span class="archive-item-a">${answerCount} إجابات</span>
+        <span class="archive-item-a">${answers.length} إجابات</span>
       `;
+      row.addEventListener("click", () => loadQuestion(entry));
       groupDiv.appendChild(row);
     });
 

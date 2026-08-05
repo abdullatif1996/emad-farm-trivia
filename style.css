@@ -862,6 +862,22 @@ body.display-page::before {
   font-size: 0.78rem;
 }
 
+/* عناصر أرشيف host.html فعليًا <button> قابلة للضغط لإعادة استخدام السؤال —
+   محدد بعنصر "button" عشان ما يأثر على أرشيف host2.html (لسا <div> عادي) */
+button.archive-item {
+  width: 100%;
+  text-align: right;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button.archive-item:hover .archive-item-q {
+  color: var(--brass);
+}
+
 /* ---------- قائمة اختيار الأسئلة (host.html) ---------- */
 .category-group {
   margin-bottom: 18px;
